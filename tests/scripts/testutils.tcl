@@ -30,7 +30,7 @@ proc _clip_test {row col ops polylist {resultdir .} {wh {200 200}}} {
 
     # Do clipping
     set cliplist {}
-    if {$t ne "Original" && [catch {set cliplist [mclip::clip {*}$e]} msg err]} {
+    if {$t ne "Original" && [catch {set cliplist [mrfclip::clip {*}$e]} msg err]} {
         $canv create text 100 100 -text "ERROR" -fill \#ff0000 -font {courier 10}
         puts [dict get $err -errorinfo]
         return

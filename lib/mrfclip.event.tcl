@@ -1,7 +1,7 @@
 
-package provide mclip::event 1.0
+package provide mrfclip::event 1.0
 
-namespace eval mclip {
+namespace eval mrfclip {
     namespace eval event {
         namespace export init
         namespace ensemble create
@@ -9,7 +9,7 @@ namespace eval mclip {
     }
 }
 
-proc mclip::event::init {args} {
+proc mrfclip::event::init {args} {
     # Create a sweep event object (an edge endpoint)
     #
     # A sweep event object tracks the associated edge and various attributes
@@ -20,8 +20,8 @@ proc mclip::event::init {args} {
 
     set name "E${counter}"
     namespace eval $name {
-        variable point      ; # mclip::point : point associated with this event
-        variable other      NULL ; # mclip::event : other sweep event on this edge
+        variable point      ; # mrfclip::point : point associated with this event
+        variable other      NULL ; # mrfclip::event : other sweep event on this edge
         variable left       ; # bool: is point left or right endpoint of edge?
         variable polytype   ; # SUBJECT | CLIPPING
         variable inout      false ; # bool: inside-outside transition into the poly
@@ -33,5 +33,5 @@ proc mclip::event::init {args} {
     set ${name}::left [lindex $args 1]
     set ${name}::polytype [lindex $args 2]
     incr counter
-    return "::mclip::event::$name"
+    return "::mrfclip::event::$name"
 }

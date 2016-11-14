@@ -2,19 +2,19 @@
 package require Tcl 8.5
 
 package require avltree
-package require mclip::point
-package require mclip::event
-package require mclip::chain
-package provide mclip 1.0
+package require mrfclip::point
+package require mrfclip::event
+package require mrfclip::chain
+package provide mrfclip 1.0
 
-namespace eval mclip {
-    namespace export mclip
+namespace eval mrfclip {
+    namespace export mrfclip
     namespace export clip
 
-    variable queue {}; # list of sweep events (mclip::event), priority queue
+    variable queue {}; # list of sweep events (mrfclip::event), priority queue
 }
 
-#proc mclip::is_clockwise {poly} {
+#proc mrfclip::is_clockwise {poly} {
 #    set prev ""
 #    set sum 0.0
 #    foreach {x y} $poly {
@@ -28,7 +28,7 @@ namespace eval mclip {
 #    return [expr {$sum > 0 ? 1 : 0}]
 #}
 
-proc mclip::compare_events {a b} {
+proc mrfclip::compare_events {a b} {
     # Return:
     #   -1 if a should be before b
     #   +1 if b should be before a
@@ -93,7 +93,7 @@ proc mclip::compare_events {a b} {
     return [S_point_compare $a $b]
 }
 
-proc mclip::queue_insert {event} {
+proc mrfclip::queue_insert {event} {
     # Insert a sweep event into the priority queue
     #
     # Arguments:
@@ -115,7 +115,7 @@ proc mclip::queue_insert {event} {
     return [lappend queue $event]
 }
 
-proc mclip::create_edge {p1 p2 polytype} {
+proc mrfclip::create_edge {p1 p2 polytype} {
     # Create an edge by instantiating two sweep events with properties
     #
     # Arguments:
@@ -142,8 +142,8 @@ proc mclip::create_edge {p1 p2 polytype} {
 
     # Create event objects, annotate the new events on their points, and
     # connect the events together
-    set event1 [::mclip::event init $p1 $left $polytype]
-    set event2 [::mclip::event init $p2 [expr {!$left}] $polytype]
+    set event1 [::mrfclip::event init $p1 $left $polytype]
+    set event2 [::mrfclip::event init $p2 [expr {!$left}] $polytype]
     lappend ${p1}::events $event1
     lappend ${p2}::events $event2
     set ${event1}::other $event2
@@ -152,7 +152,7 @@ proc mclip::create_edge {p1 p2 polytype} {
     return [list $event1 $event2]
 }
 
-proc mclip::create_poly {poly polytype} {
+proc mrfclip::create_poly {poly polytype} {
     # Create a polygon object by instantiating the edges and inserting them
     # into the priority queue
     #
@@ -176,8 +176,8 @@ proc mclip::create_poly {poly polytype} {
     set points {}
     #for {set i 0} {$i < [llength $poly]} {incr i}
     foreach {x y} $poly {
-        #lappend points [::mclip::point init [lindex $poly $i]]
-        lappend points [::mclip::point init [list $x $y]]
+        #lappend points [::mrfclip::point init [lindex $poly $i]]
+        lappend points [::mrfclip::point init [list $x $y]]
     }
 
     # Create Events from Points
@@ -217,7 +217,7 @@ proc mclip::create_poly {poly polytype} {
     return $events
 }
 
-proc mclip::lshift {listVar} {
+proc mrfclip::lshift {listVar} {
     # Remove the first item from the specified list and return its value
 
     upvar 1 $listVar l
@@ -231,7 +231,7 @@ proc mclip::lshift {listVar} {
     return $r
 }
 
-proc mclip::S_point_compare {a b} {
+proc mrfclip::S_point_compare {a b} {
     # If 'a' should be ordered before 'b,' return -1, otherwise return 1
     # If a is the same edge as b, return 0
     #
@@ -282,7 +282,7 @@ proc mclip::S_point_compare {a b} {
     return [expr {$p != 0 ? $p : [set ${a}::polytype] eq "SUBJECT" ? -1 : 1}]
 }
 
-proc mclip::insert_S {Slist event} {
+proc mrfclip::insert_S {Slist event} {
     # Insert an edge, represented by its left endpoint, into S
     #
     # Arguments:
@@ -311,7 +311,7 @@ proc mclip::insert_S {Slist event} {
     return [expr {[llength $S] - 1}]
 }
 
-proc mclip::find_in_S {S element} {
+proc mrfclip::find_in_S {S element} {
     # Find the position of this element in S
     #
     # Arguments:
@@ -323,7 +323,7 @@ proc mclip::find_in_S {S element} {
         }
     }
 }
-proc mclip::poly_from_chain {chain} {
+proc mrfclip::poly_from_chain {chain} {
     # Convert a chain to a list of points (polygon)
     set poly {}
     foreach point [set ${chain}::points] {
@@ -332,7 +332,7 @@ proc mclip::poly_from_chain {chain} {
     return $poly
 }
 
-proc mclip::create_chains {segs} {
+proc mrfclip::create_chains {segs} {
     # Connect all segments in the solution into an arbitrary number of polygons
     #
     # Arguments:
@@ -350,7 +350,7 @@ proc mclip::create_chains {segs} {
         #set curr [lshift segs]
         #puts "DEBUG: curr = $curr"
         #puts "C = $C"
-        #foreach chain [namespace children ::mclip::chain] {
+        #foreach chain [namespace children ::mrfclip::chain] {
         #    puts "chain ($chain): [set ${chain}::points]"
         #}
         set sl [lindex $curr 0]
@@ -454,7 +454,7 @@ proc mclip::create_chains {segs} {
 
         # Create new chain
         #puts "DEBUG: NEW CHAIN:"
-        set c [::mclip::chain init]
+        set c [::mrfclip::chain init]
         #puts "  c = $c"
         lappend ${c}::points $sl
         lappend ${c}::points $sr
@@ -468,7 +468,7 @@ proc mclip::create_chains {segs} {
     return $R
 }
 
-proc mclip::intersect {p q} {
+proc mrfclip::intersect {p q} {
     # Calculate intersection point of two line segments
     #
     # Algorithm taken from:
@@ -575,7 +575,7 @@ proc mclip::intersect {p q} {
     ]
 }
 
-proc mclip::edges_overlap {c1l c1r c2l c2r} {
+proc mrfclip::edges_overlap {c1l c1r c2l c2r} {
     if {[coords_equal $c1l $c2l] && [coords_equal $c1r $c2r]} {
         return 1
     }
@@ -585,7 +585,7 @@ proc mclip::edges_overlap {c1l c1r c2l c2r} {
     return 0
 }
 
-proc mclip::possible_inter {e1 e2} {
+proc mrfclip::possible_inter {e1 e2} {
     # Check for a possible intersection between two edges and subdivide them
     #
     # Arguments:
@@ -626,7 +626,7 @@ proc mclip::possible_inter {e1 e2} {
         return
     }
 
-    set inter [::mclip::intersect \
+    set inter [::mrfclip::intersect \
     [list {*}$e1coord {*}$e1ocoord] [list {*}$e2coord {*}$e2ocoord]]
 
     # No intersection
@@ -669,8 +669,8 @@ proc mclip::possible_inter {e1 e2} {
                 set common_point [set [set ${left2}::other]::point]
 
                 # Create new segment
-                set nel [::mclip::event init $common_point true [set ${left2}::polytype]]
-                set ner [::mclip::event init $old_right_point false [set ${left2}::polytype]]
+                set nel [::mrfclip::event init $common_point true [set ${left2}::polytype]]
+                set ner [::mrfclip::event init $old_right_point false [set ${left2}::polytype]]
                 $queue insert [set ${left2}::other]
                 set left2 $nel
             } else {
@@ -683,8 +683,8 @@ proc mclip::possible_inter {e1 e2} {
                 set common_point [set [set ${left1}::other]::point]
 
                 # Create new segment
-                set nel [::mclip::event init $common_point true [set ${left1}::polytype]]
-                set ner [::mclip::event init $old_right_point false [set ${left1}::polytype]]
+                set nel [::mrfclip::event init $common_point true [set ${left1}::polytype]]
+                set ner [::mrfclip::event init $old_right_point false [set ${left1}::polytype]]
                 $queue insert [set ${left1}::other]
                 set left1 $nel
             }
@@ -724,8 +724,8 @@ proc mclip::possible_inter {e1 e2} {
                 set common_point [set [set ${left2}::other]::point]
 
                 # Create new segment
-                set nel [::mclip::event init $common_point true [set ${left2}::polytype]]
-                set ner [::mclip::event init $old_right_point false [set ${left2}::polytype]]
+                set nel [::mrfclip::event init $common_point true [set ${left2}::polytype]]
+                set ner [::mrfclip::event init $old_right_point false [set ${left2}::polytype]]
                 $queue insert [set ${left2}::other]
             } else {
                 # Save the point and remove it from the queue
@@ -737,8 +737,8 @@ proc mclip::possible_inter {e1 e2} {
                 set common_point [set [set ${left1}::other]::point]
 
                 # Create new segment
-                set nel [::mclip::event init $common_point true [set ${left1}::polytype]]
-                set ner [::mclip::event init $old_right_point false [set ${left1}::polytype]]
+                set nel [::mrfclip::event init $common_point true [set ${left1}::polytype]]
+                set ner [::mrfclip::event init $old_right_point false [set ${left1}::polytype]]
                 $queue insert [set ${left1}::other]
             }
             set ${nel}::other $ner
@@ -772,8 +772,8 @@ proc mclip::possible_inter {e1 e2} {
         } else {
             set point [set ${e1o}::point]
         }
-        set nel [::mclip::event init $point true  [set ${e2}::polytype]]
-        set ner [::mclip::event init $point false [set ${e2}::polytype]]
+        set nel [::mrfclip::event init $point true  [set ${e2}::polytype]]
+        set ner [::mrfclip::event init $point false [set ${e2}::polytype]]
 
         # Connect new events first
         lappend ${point}::events $ner
@@ -805,8 +805,8 @@ proc mclip::possible_inter {e1 e2} {
         } else {
             set point [set ${e2o}::point]
         }
-        set nel [::mclip::event init $point true  [set ${e1}::polytype]]
-        set ner [::mclip::event init $point false [set ${e1}::polytype]]
+        set nel [::mrfclip::event init $point true  [set ${e1}::polytype]]
+        set ner [::mrfclip::event init $point false [set ${e1}::polytype]]
 
         # Connect new events first
         lappend ${point}::events {*}[list $ner $nel]
@@ -830,11 +830,11 @@ proc mclip::possible_inter {e1 e2} {
 
     # Must subdivide both edges
     # Create new point
-    set point [::mclip::point init $icoord]
-    set nel1 [::mclip::event init $point true [set ${e1}::polytype]]
-    set ner1 [::mclip::event init $point false [set ${e1}::polytype]]
-    set nel2 [::mclip::event init $point true [set ${e2}::polytype]]
-    set ner2 [::mclip::event init $point false [set ${e2}::polytype]]
+    set point [::mrfclip::point init $icoord]
+    set nel1 [::mrfclip::event init $point true [set ${e1}::polytype]]
+    set ner1 [::mrfclip::event init $point false [set ${e1}::polytype]]
+    set nel2 [::mrfclip::event init $point true [set ${e2}::polytype]]
+    set ner2 [::mrfclip::event init $point false [set ${e2}::polytype]]
 
     lappend ${point}::events {*}[list $nel1 $nel2 $ner1 $ner2]
     set ${nel1}::other [expr {[set ${e1}::left] ? $e1o : $e1}]
@@ -852,7 +852,7 @@ proc mclip::possible_inter {e1 e2} {
     $queue insert $ner2
 }
 
-proc mclip::coords_equal {a b} {
+proc mrfclip::coords_equal {a b} {
     set epsilon 0.00000000001
     return [expr { \
         abs([lindex $a 0] - [lindex $b 0]) < $epsilon \
@@ -860,7 +860,7 @@ proc mclip::coords_equal {a b} {
     }]
 }
 
-proc mclip::event_is_vertical {event} {
+proc mrfclip::event_is_vertical {event} {
     set p1 [set [set ${event}::point]::coord]
     set p2 [set [set [set ${event}::other]::point]::coord]
     #puts "DEBUG: in event_is_vertical"
@@ -869,7 +869,7 @@ proc mclip::event_is_vertical {event} {
     return [expr {[lindex $p1 0] == [lindex $p2 0] ? 1 : 0}]
 }
 
-proc mclip::set_inside_flags {curr_event prev_event} {
+proc mrfclip::set_inside_flags {curr_event prev_event} {
     # set the inside flags for this event in s
     #
     # arguments:
@@ -891,7 +891,7 @@ proc mclip::set_inside_flags {curr_event prev_event} {
     }
 }
 
-proc mclip::point_above_line {ax ay bx by cx cy} {
+proc mrfclip::point_above_line {ax ay bx by cx cy} {
     # check if a point is above or below the speified line
     # the point could be a left or right endpoint
     #
@@ -922,7 +922,7 @@ proc mclip::point_above_line {ax ay bx by cx cy} {
     $ay > $line_y ? 1 : -1}]
 }
 
-proc mclip::mclip {subject clipping operation} {
+proc mrfclip::mrfclip {subject clipping operation} {
     # clip two polygons based on the specified operation
     #
     # arguments:
@@ -951,7 +951,7 @@ proc mclip::mclip {subject clipping operation} {
     set queue [::avltree::create]
     # Bind compare proc
     proc ${queue}::compare {a b} {
-        return [::mclip::compare_events $a $b]
+        return [::mrfclip::compare_events $a $b]
     }
 
     # step 1: create polygons and populate the priority queue
@@ -972,12 +972,12 @@ proc mclip::mclip {subject clipping operation} {
         - [lindex [set [set ${b}::point]::coord] 0] < -$epsilon} {
             # Do the comparison the same way during insertion, and do the
             # opposite
-            set r [::mclip::S_point_compare $b $a]
+            set r [::mrfclip::S_point_compare $b $a]
             return [expr {$r == 0 ? 0 : $r < 0 ? 1 : -1}]
         }
-        return [::mclip::S_point_compare $a $b]
+        return [::mrfclip::S_point_compare $a $b]
     }
-    #interp alias {} ${S}::compare {} ::mclip::S_point_compare
+    #interp alias {} ${S}::compare {} ::mrfclip::S_point_compare
     set intersection_segs {}
     set union_segs {}
     set diff_segs {}
@@ -1115,9 +1115,9 @@ proc mclip::mclip {subject clipping operation} {
     }
 
     # Create and connect chains of segments into polygons
-    set int_polygons [::mclip::create_chains $intersection_psegs]
-    set union_polygons [::mclip::create_chains $union_psegs]
-    set diff_polygons [::mclip::create_chains $diff_psegs]
+    set int_polygons [::mrfclip::create_chains $intersection_psegs]
+    set union_polygons [::mrfclip::create_chains $union_psegs]
+    set diff_polygons [::mrfclip::create_chains $diff_psegs]
 
 
     switch $operation {
@@ -1128,11 +1128,11 @@ proc mclip::mclip {subject clipping operation} {
     }
 
     # Cleanup
-    namespace delete {*}[namespace children ::mclip::event]
-    namespace delete {*}[namespace children ::mclip::point]
+    namespace delete {*}[namespace children ::mrfclip::event]
+    namespace delete {*}[namespace children ::mrfclip::point]
 }
 
-proc mclip::multi_clip {p1 p2 op} {
+proc mrfclip::multi_clip {p1 p2 op} {
     # handle multiple polygon list inputs and perform the specified operation
     #
     # args
@@ -1179,22 +1179,22 @@ proc mclip::multi_clip {p1 p2 op} {
             # OR all of them instead of returning list
             # This is intentionally slower than ideal until ideal approach works
             set exp \{[join $polylist "\} OR \{"]\}
-            return [mclip::clip {*}$exp]
+            return [mrfclip::clip {*}$exp]
             # Preferred implementation:
             #   Or first 0..N-1 polygons with the last polygon, letting the
             #   clipping algorithm remove common edges
             #   Currently causes errors (unable to delete element in S)
             #set first [lrange $polylist 0 end-1]
             #set last [lindex $polylist end]
-            #return [mclip::clip $first OR $last]
+            #return [mrfclip::clip $first OR $last]
         }
     } else {
-        lappend polylist {*}[mclip $p1 $p2 $op]
+        lappend polylist {*}[mrfclip $p1 $p2 $op]
     }
     return $polylist
 }
 
-proc mclip::clip {args} {
+proc mrfclip::clip {args} {
     # parse and execute poly clipping expression
     #
     # args

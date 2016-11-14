@@ -9,7 +9,7 @@
 # full path name of this file's directory.
 
 package ifneeded avltree 1.0 [list source [file join $dir avltree.tcl]]
-package ifneeded mclip 1.0 [list source [file join $dir mclip.tcl]]
-package ifneeded mclip::event 1.0 [list source [file join $dir mclip.event.tcl]]
-package ifneeded mclip::point 1.0 [list source [file join $dir mclip.point.tcl]]
-package ifneeded mclip::chain 1.0 [list source [file join $dir mclip.chain.tcl]]
+package ifneeded mrfclip 1.0 [list source [file join $dir mrfclip.tcl]]
+package ifneeded mrfclip::event 1.0 [list source [file join $dir mrfclip.event.tcl]]
+package ifneeded mrfclip::point 1.0 [list source [file join $dir mrfclip.point.tcl]]
+package ifneeded mrfclip::chain 1.0 [list source [file join $dir mrfclip.chain.tcl]]

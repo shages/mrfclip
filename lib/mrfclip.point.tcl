@@ -1,7 +1,7 @@
 
-package provide mclip::point 1.0
+package provide mrfclip::point 1.0
 
-namespace eval mclip {
+namespace eval mrfclip {
     namespace eval point {
         namespace export init
         namespace ensemble create
@@ -9,7 +9,7 @@ namespace eval mclip {
     }
 }
 
-proc mclip::point::init {coord} {
+proc mrfclip::point::init {coord} {
     # Create a point object.
     #
     # Really only necessary for dictionary of chain endpoints
@@ -27,5 +27,5 @@ proc mclip::point::init {coord} {
     set ${name}::coord $coord
     set ${name}::events {}
 
-    return "::mclip::point::$name"
+    return "::mrfclip::point::$name"
 }

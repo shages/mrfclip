@@ -4,7 +4,7 @@ package require Tk
 
 set dir [file dirname [info script]]
 lappend auto_path [file normalize [file join $dir ..]]
-package require mclip
+package require mrfclip
 
 source [file join $dir scripts testutils.tcl]
 set rdir [file join $dir results [lindex [file split [file rootname [info script]]] end]]

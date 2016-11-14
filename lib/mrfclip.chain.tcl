@@ -1,7 +1,7 @@
 
-package provide mclip::chain 1.0
+package provide mrfclip::chain 1.0
 
-namespace eval mclip {
+namespace eval mrfclip {
     namespace eval chain {
         namespace export init
         namespace ensemble create
@@ -9,7 +9,7 @@ namespace eval mclip {
     }
 }
 
-proc mclip::chain::init {} {
+proc mrfclip::chain::init {} {
     # Create a chain object (doubly-linked list)
     #
     # Arguments:
@@ -23,5 +23,5 @@ proc mclip::chain::init {} {
         variable right NULL;    # Right end point
     }
 
-    return "::mclip::chain::$name"
+    return "::mrfclip::chain::$name"
 }
