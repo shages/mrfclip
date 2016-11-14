@@ -9,17 +9,22 @@ Download and directly load into Tcl
     package require mrfclip
 
 ## Features
-- Supports the following boolean operations are supported.
+- Supports the following boolean operations
   * **AND** - intersection
   * **OR** - union
   * **NOT** - difference
   * **XOR** - (A NOT B) OR (B NOT A)
 - Supports all degenerate cases
-- Runs in O(n log n+k) time, where n is the number of input points and k is the number of intersections.
-  * \*XOR currently runs in > O(n log n+k) time
+- Runs in O(n log n+k) time, where n is the number of input points and k is
+  the number of intersections
+  * \*XOR currently runs in longer time
 - Partial support for holes
-  * The algorithm inherently handles holes, but there is no formalized API
-    for providing polygons with holes as input nor the resulting polygons having holes.
+
+### Known Issues
+- Polygons with self-overlapping edges are not currently supported
+- Holes have no formal support. Hole polygons are returned, but just as any
+  other polygon.
+
 
 ## Examples
 - AND, OR, NOT, and XOR
@@ -28,9 +33,10 @@ Download and directly load into Tcl
 <img src="/doc/images/t02/r0_1.png" alt="A OR B" width="200" />
 <img src="/doc/images/t02/r0_4.png" alt="A NOT B" width="200" />
 <img src="/doc/images/t02/r0_3.png" alt="A XOR B" width="200" />
-- Self-intersecting
+- Self-intersecting (second image showing holes improperly drawn)
 
 <img src="/doc/images/t01/r0_2.png" alt="A AND B" width="200" />
+<img src="/doc/images/t01/r0_1.png" alt="A OR B" width="200" />
 <img src="/doc/images/t17/r0_2.png" alt="A AND B" width="200" />
 - Degenerate
 
