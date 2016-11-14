@@ -47,6 +47,7 @@ proc _clip_test {row col ops polylist {resultdir .} {wh {200 200}}} {
         if {[llength $cliplist]} {
             foreach poly $cliplist {
                 $canv create polygon {*}$poly -fill \#00ff00 -outline {}
+                $canv create polygon {*}$poly -fill {} -outline \#000000 -width 2
             }
         }
     }
