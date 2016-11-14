@@ -1176,9 +1176,17 @@ proc mclip::multi_clip {p1 p2 op} {
             lappend polylist {*}[clip {*}$args]
         }
         if {[llength $polylist] > 1} {
-            # Actually OR them instead of returning list
+            # OR all of them instead of returning list
+            # This is intentionally slower than ideal until ideal approach works
             set exp \{[join $polylist "\} OR \{"]\}
             return [mclip::clip {*}$exp]
+            # Preferred implementation:
+            #   Or first 0..N-1 polygons with the last polygon, letting the
+            #   clipping algorithm remove common edges
+            #   Currently causes errors (unable to delete element in S)
+            #set first [lrange $polylist 0 end-1]
+            #set last [lindex $polylist end]
+            #return [mclip::clip $first OR $last]
         }
     } else {
         lappend polylist {*}[mclip $p1 $p2 $op]
