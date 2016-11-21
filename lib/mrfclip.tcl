@@ -37,13 +37,14 @@ proc mrfclip::compare_events {a b} {
     # Identical events
     if {$a eq $b} { return 0 }
 
+
     # Convert all points to floating point
     set apoint [set [set ${a}::point]::coord]
-    set ax [expr {[lindex $apoint 0]*1.0}]
-    set ay [expr {[lindex $apoint 1]*1.0}]
+    set ax [lindex $apoint 0]
+    set ay [lindex $apoint 1]
     set bpoint [set [set ${b}::point]::coord]
-    set bx [expr {[lindex $bpoint 0]*1.0}]
-    set by [expr {[lindex $bpoint 1]*1.0}]
+    set bx [lindex $bpoint 0]
+    set by [lindex $bpoint 1]
 
     # Sort top to bottom
     set epsilon 0.00000000001
@@ -177,7 +178,7 @@ proc mrfclip::create_poly {poly polytype} {
     #for {set i 0} {$i < [llength $poly]} {incr i}
     foreach {x y} $poly {
         #lappend points [::mrfclip::point init [lindex $poly $i]]
-        lappend points [::mrfclip::point init [list $x $y]]
+        lappend points [::mrfclip::point init [list [expr {1.0*$x}] [expr {1.0*$y}]]]
     }
 
     # Create Events from Points
@@ -1115,17 +1116,12 @@ proc mrfclip::mrfclip {subject clipping operation} {
     }
 
     # Create and connect chains of segments into polygons
-    set int_polygons [::mrfclip::create_chains $intersection_psegs]
-    set union_polygons [::mrfclip::create_chains $union_psegs]
-    set diff_polygons [::mrfclip::create_chains $diff_psegs]
-
-
     switch $operation {
-        "AND" { return $int_polygons }
-        "OR"  { return $union_polygons }
-        "NOT" { return $diff_polygons }
-        default { error "Unsupported operation: $operation" }
+        "AND" { set polygons [::mrfclip::create_chains $intersection_psegs] }
+        "OR"  { set polygons [::mrfclip::create_chains $union_psegs] }
+        "NOT" { set polygons [::mrfclip::create_chains $diff_psegs] }
     }
+    return $polygons
 
     # Cleanup
     namespace delete {*}[namespace children ::mrfclip::event]
