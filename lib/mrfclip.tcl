@@ -12,10 +12,11 @@ namespace eval mrfclip {
     namespace export clip
 
     variable queue {}; # list of sweep events (mrfclip::event), priority queue
+    variable epsilon 0.00000000001
 }
 
 proc mrfclip::coords_equal {a b} {
-    set epsilon 0.00000000001
+    variable epsilon
     return [expr { \
         abs([lindex $a 0] - [lindex $b 0]) < $epsilon \
         && abs([lindex $a 1] - [lindex $b 1]) < $epsilon \
@@ -36,7 +37,7 @@ proc mrfclip::point_above_line {ax ay bx by cx cy} {
     # -1 - below
 
     # If the line is vertical
-    set epsilon 0.00000000001
+    variable epsilon
     if {abs(1.0*$bx - $cx) < $epsilon} {
         # On the line
         if {abs(1.0*$ax - $bx) < $epsilon} { return 0 }
@@ -57,6 +58,7 @@ proc mrfclip::S_point_compare {a b} {
     # If a is the same edge as b, return 0
     #
     # Sort first by y-coordinate intersecting the sweep line
+    variable epsilon
 
     # First check if they are equal (used by BST delete)
     if {$a eq $b} {
@@ -76,7 +78,6 @@ proc mrfclip::S_point_compare {a b} {
     # check vertical case first
     set aline [list [set [set ${a}::point]::coord] [set [set [set ${a}::other]::point]::coord]]
     set bline [list [set [set ${b}::point]::coord] [set [set [set ${b}::other]::point]::coord]]
-    set epsilon 0.00000000001
     if {abs([lindex $bline 0 0] - [lindex $bline 1 0]) < $epsilon} {
         # vertical
         # Compare by lower y-coord
@@ -102,6 +103,7 @@ proc mrfclip::compare_events {a b} {
     #   -1 if a should be before b
     #   +1 if b should be before a
     #    0 if the events are identical
+    variable epsilon
 
     # Identical events
     if {$a eq $b} { return 0 }
@@ -115,7 +117,6 @@ proc mrfclip::compare_events {a b} {
     set by [lindex $bpoint 1]
 
     # Sort top to bottom
-    set epsilon 0.00000000001
     if {$ax - $bx < -$epsilon} { return -1 }
     if {$ax - $bx > $epsilon}  { return 1 }
 
@@ -171,13 +172,13 @@ proc mrfclip::create_edge {p1 p2 polytype} {
     # polytype  The poly this edge belongs to (SUBJECT | CLIPPING)
     #
     # Return a list of two sweep events in the same order as p1 & p2
+    variable epsilon
 
     # Check which point is left of the other
     set p1x [lindex [set ${p1}::coord] 0]
     set p1y [lindex [set ${p1}::coord] 1]
     set p2x [lindex [set ${p2}::coord] 0]
     set p2y [lindex [set ${p2}::coord] 1]
-    set epsilon 0.00000000001
     set left 0
     if {abs($p1x - $p2x) < $epsilon} {
         if {$p1y - $p2y < -$epsilon} {
