@@ -112,10 +112,10 @@ proc mrfclip::create_edge {p1 p2 polytype} {
     # Return a list of two sweep events in the same order as p1 & p2
 
     # Check which point is left of the other
-    set p1x [expr {[lindex [set ${p1}::coord] 0]*1.0}]
-    set p1y [expr {[lindex [set ${p1}::coord] 1]*1.0}]
-    set p2x [expr {[lindex [set ${p2}::coord] 0]*1.0}]
-    set p2y [expr {[lindex [set ${p2}::coord] 1]*1.0}]
+    set p1x [lindex [set ${p1}::coord] 0]
+    set p1y [lindex [set ${p1}::coord] 1]
+    set p2x [lindex [set ${p2}::coord] 0]
+    set p2y [lindex [set ${p2}::coord] 1]
     set epsilon 0.00000000001
     set left 0
     if {abs($p1x - $p2x) < $epsilon} {
@@ -231,13 +231,13 @@ proc mrfclip::S_point_compare {a b} {
     set aline [list [set [set ${a}::point]::coord] [set [set [set ${a}::other]::point]::coord]]
     set bline [list [set [set ${b}::point]::coord] [set [set [set ${b}::other]::point]::coord]]
     set epsilon 0.00000000001
-    if {abs([lindex $bline 0 0]*1.0 - [lindex $bline 1 0]) < $epsilon} {
+    if {abs([lindex $bline 0 0] - [lindex $bline 1 0]) < $epsilon} {
         # vertical
         # Compare by lower y-coord
-        if {[lindex $aline 0 1]*1.0 < [lindex $bline 0 1]} {
+        if {[lindex $aline 0 1] < [lindex $bline 0 1]} {
             return -1
         }
-        if {[lindex $aline 0 1]*1.0 > [lindex $bline 0 1]} {
+        if {[lindex $aline 0 1] > [lindex $bline 0 1]} {
             return 1
         }
         # same y-coord, compare other point
