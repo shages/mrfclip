@@ -18,7 +18,7 @@ proc mrfclip::chain::init {} {
 
     set name "C[incr counter]"
     namespace eval $name {
-        variable points {};        # List of points
+        variable points {};      # List of points
         variable left NULL;     # Left end point
         variable right NULL;    # Right end point
     }

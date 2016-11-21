@@ -14,20 +14,6 @@ namespace eval mrfclip {
     variable queue {}; # list of sweep events (mrfclip::event), priority queue
 }
 
-#proc mrfclip::is_clockwise {poly} {
-#    set prev ""
-#    set sum 0.0
-#    foreach {x y} $poly {
-#        if {$prev eq ""} {
-#            set prev [list $x $y]
-#            continue
-#        }
-#        set sum [expr {$sum + ($x - [lindex $prev 0])*($y - [lindex $prev 1])}]
-#        set prev [list $x $y]
-#    }
-#    return [expr {$sum > 0 ? 1 : 0}]
-#}
-
 proc mrfclip::compare_events {a b} {
     # Return:
     #   -1 if a should be before b
@@ -36,7 +22,6 @@ proc mrfclip::compare_events {a b} {
 
     # Identical events
     if {$a eq $b} { return 0 }
-
 
     # Convert all points to floating point
     set apoint [set [set ${a}::point]::coord]
@@ -164,20 +149,9 @@ proc mrfclip::create_poly {poly polytype} {
     # Return all sweep events of the polygon
     variable queue
 
-#    # Convert to counter-clockwise
-#    if {[is_clockwise $poly]} {
-#        set tmp {}
-#        for {set i [expr {[llength $poly] - 1}]} {$i >= 0} {incr i -1} {
-#            lappend tmp [lindex $poly $i]
-#        }
-#        set poly $tmp
-#    }
-
     # Convert polygon coordinates to Points
     set points {}
-    #for {set i 0} {$i < [llength $poly]} {incr i}
     foreach {x y} $poly {
-        #lappend points [::mrfclip::point init [lindex $poly $i]]
         lappend points [::mrfclip::point init [list [expr {1.0*$x}] [expr {1.0*$y}]]]
     }
 
@@ -239,11 +213,7 @@ proc mrfclip::S_point_compare {a b} {
     # Sort first by y-coordinate intersecting the sweep line
 
     # First check if they are equal (used by BST delete)
-    #puts "DEBUG: compare"
-    #puts "  a = $a"
-    #puts "  b = $b"
     if {$a eq $b} {
-        #puts "DEBUG: returning 0" ;
         return 0
     }
 
@@ -253,10 +223,8 @@ proc mrfclip::S_point_compare {a b} {
     {*}[set [set ${b}::point]::coord] {*}[set [set [set ${b}::other]::point]::coord]]
 
     if {$p != 0} {
-        #puts "DEBUG: Returning p = $p" ;
         return $p
     }
-    #puts "DEBUG: p == 0"
 
     # 0 means on b, but b could be vertical
     # check vertical case first
@@ -348,16 +316,8 @@ proc mrfclip::create_chains {segs} {
 
     foreach curr $segs {
         # Shift out current list of two points
-        #set curr [lshift segs]
-        #puts "DEBUG: curr = $curr"
-        #puts "C = $C"
-        #foreach chain [namespace children ::mrfclip::chain] {
-        #    puts "chain ($chain): [set ${chain}::points]"
-        #}
         set sl [lindex $curr 0]
         set sr [lindex $curr 1]
-        #puts "  sl = [set ${sl}::coord]"
-        #puts "  sr = [set ${sr}::coord]"
 
         # check if a matching point for this left event exists
 
@@ -416,8 +376,6 @@ proc mrfclip::create_chains {segs} {
         }
 
         if {[dict exists $C $sl]} {
-            #puts "DEBUG: Match found for SL"
-
             set chain [dict get $C $sl]
             if {[set ${chain}::left] eq $sl} {
                 # Connect to left end and replace left with sr
@@ -434,8 +392,6 @@ proc mrfclip::create_chains {segs} {
 
             continue
         } elseif {[dict exists $C $sr]} {
-            #puts "DEBUG: Match found for SR"
-
             set chain [dict get $C $sr]
             if {[set ${chain}::left] eq $sr} {
                 # Connect to left end and replace left with sl
@@ -454,17 +410,13 @@ proc mrfclip::create_chains {segs} {
         }
 
         # Create new chain
-        #puts "DEBUG: NEW CHAIN:"
         set c [::mrfclip::chain init]
-        #puts "  c = $c"
         lappend ${c}::points $sl
         lappend ${c}::points $sr
         set ${c}::left $sl
         set ${c}::right $sr
         dict set C $sl $c
         dict set C $sr $c
-        #puts "DEBUG: C = "
-        #puts "  [dict get $C]"
     }
     return $R
 }
@@ -601,11 +553,6 @@ proc mrfclip::possible_inter {e1 e2} {
 
     if {$e1 eq "" || $e2 eq "" || $e1 eq "NULL" || $e2 eq "NULL"} {
         return
-    }
-
-    # Same polygon, so ignore
-    if {[set ${e1}::polytype] eq [set ${e2}::polytype]} {
-        #return
     }
 
     # Check for intersection
@@ -864,9 +811,6 @@ proc mrfclip::coords_equal {a b} {
 proc mrfclip::event_is_vertical {event} {
     set p1 [set [set ${event}::point]::coord]
     set p2 [set [set [set ${event}::other]::point]::coord]
-    #puts "DEBUG: in event_is_vertical"
-    #puts "  p1 = $p1"
-    #puts "  p2 = $p2"
     return [expr {[lindex $p1 0] == [lindex $p2 0] ? 1 : 0}]
 }
 
@@ -910,7 +854,6 @@ proc mrfclip::point_above_line {ax ay bx by cx cy} {
     if {abs(1.0*$bx - $cx) < $epsilon} {
         # On the line
         if {abs(1.0*$ax - $bx) < $epsilon} { return 0 }
-        #return -1
         return -1
     }
 
@@ -956,7 +899,6 @@ proc mrfclip::mrfclip {subject clipping operation} {
     }
 
     # step 1: create polygons and populate the priority queue
-    #puts "DEBUG: subject rep: [tcl::unsupported::representation $subject]"
     # inputs "subject" and "clipping" should be multi-polygons
     foreach sub $subject {
         create_poly $sub SUBJECT
@@ -965,7 +907,6 @@ proc mrfclip::mrfclip {subject clipping operation} {
         create_poly $clip CLIPPING
     }
 
-    #set S {}
     set S [::avltree::create]
     proc ${S}::compare {a b} {
         set epsilon 0.00000000001
@@ -978,7 +919,6 @@ proc mrfclip::mrfclip {subject clipping operation} {
         }
         return [::mrfclip::S_point_compare $a $b]
     }
-    #interp alias {} ${S}::compare {} ::mrfclip::S_point_compare
     set intersection_segs {}
     set union_segs {}
     set diff_segs {}
@@ -991,15 +931,6 @@ proc mrfclip::mrfclip {subject clipping operation} {
     set iter [expr {[llength $subject] * 2}]
     set prev ""
     while {[set event [$queue pop_leftmost]] ne "NULL"} {
-        #$queue draw
-        #puts "DEBUG: event: $event ([lindex [set [set ${event}::point]::coord] 0], \
-        #[lindex [set [set ${event}::point]::coord] 1])"
-        #    puts "DEBUG: event line:
-        #    ([lindex [set [set ${event}::point]::coord] 0], [lindex [set [set ${event}::point]::coord] 1])
-        #    ([lindex [set [set [set ${event}::other]::point]::coord] 0], [lindex [set [set [set ${event}::other]::point]::coord] 1])
-        #    "
-        #    puts "S = $S"
-        #puts "DEBUG: left: [set ${event}::left]"
         if {$event eq $prev} {
             puts "FATAL: Infinite loop detected"
             puts "DEBUG: event line:
@@ -1013,9 +944,6 @@ proc mrfclip::mrfclip {subject clipping operation} {
         if {[set ${event}::left]} {
             # left event
             # get position to insert into s
-            #set pos [insert_S S $event]
-            #set S_left [lindex $S [expr {$pos - 1}]]
-            #set S_right [lindex $S [expr {$pos + 1}]]
             $S insert $event
             set S_left [$S value_left_of $event]
             set S_right [$S value_right_of $event]
@@ -1029,9 +957,6 @@ proc mrfclip::mrfclip {subject clipping operation} {
         } else {
             # get position of corresponding point
             set other [set ${event}::other]
-            #set pos_other [find_in_S $S $other]
-            #set prev [lindex $S [expr {$pos_other - 1}]]
-            #set next [lindex $S [expr {$pos_other + 1}]]
             set prev [$S value_left_of $other]
             set next [$S value_right_of $other]
 
@@ -1088,31 +1013,14 @@ proc mrfclip::mrfclip {subject clipping operation} {
             }
 
             # Remove from S
-            #set S [list {*}[lrange $S 0 [expr $pos_other - 1]] \
-            #{*}[lrange $S [expr $pos_other + 1] end]]
-            #puts "S = [$S to_list]"
-            #$S draw
             if {[$S delete $other] == 0} {
-                puts "ERROR: Couldn't delete: $other"
+                puts "ERROR: Couldn't delete: $other. Result will likely be wrong."
                 puts "  coord = [set [set ${other}::point]::coord]"
             }
 
             # Check for intersections of new neighbors
             possible_inter $prev $next
         }
-#        puts "DEBUG: S: [$S to_list]"
-#        set str ""
-#        foreach e [$S to_list] {
-#            set str "$str [set ${e}::edgetype]"
-#        }
-#        puts "edge_types: $str"
-#        puts "event data ($event)"
-#        puts "  other       = [set ${event}::other]"
-#        puts "  left        = [set ${event}::left]"
-#        puts "  inside      = [set ${event}::inside]"
-#        puts "  inout       = [set ${event}::inout]"
-#        puts "  polytype    = [set ${event}::polytype]"
-#        puts "  edgetype    = [set ${event}::edgetype]"
     }
 
     # Create and connect chains of segments into polygons
@@ -1210,11 +1118,9 @@ proc mrfclip::clip {args} {
         if {[llength [lindex $p2 0]] == 1} {
             set p2 [list $p2]
         }
-        #return [multi_clip [lindex $args 1] [lindex $args 0] [lindex $args 2]]
         set r [multi_clip $p1 $p2 [lindex $args 1]]
         return $r
     } else {
-        #return [multi_clip [lindex $args end-1] [clip {*}[lrange $args 0 end-2]] [lindex $args end]]
         set p2 [lindex $args end]
         if {[llength [lindex $p2 0]] == 1} {
             set p2 [list $p2]
