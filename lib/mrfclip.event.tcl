@@ -4,9 +4,16 @@ package provide mrfclip::event 1.0
 namespace eval mrfclip {
     namespace eval event {
         namespace export init
+        namespace export is_vertical
         namespace ensemble create
         variable counter 0
     }
+}
+
+proc mrfclip::event::is_vertical {event} {
+    set p1 [set [set ${event}::point]::coord]
+    set p2 [set [set [set ${event}::other]::point]::coord]
+    return [expr {[lindex $p1 0] == [lindex $p2 0] ? 1 : 0}]
 }
 
 proc mrfclip::event::init {args} {

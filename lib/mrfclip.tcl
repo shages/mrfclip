@@ -14,6 +14,89 @@ namespace eval mrfclip {
     variable queue {}; # list of sweep events (mrfclip::event), priority queue
 }
 
+proc mrfclip::coords_equal {a b} {
+    set epsilon 0.00000000001
+    return [expr { \
+        abs([lindex $a 0] - [lindex $b 0]) < $epsilon \
+        && abs([lindex $a 1] - [lindex $b 1]) < $epsilon \
+    }]
+}
+
+proc mrfclip::point_above_line {ax ay bx by cx cy} {
+    # check if a point is above or below the speified line
+    # the point could be a left or right endpoint
+    #
+    # arguments:
+    # point     the point (x,y coords) to test
+    # line      the line (two points) to test against
+    #
+    # returns:
+    # 1  - above
+    # 0  - on
+    # -1 - below
+
+    # If the line is vertical
+    set epsilon 0.00000000001
+    if {abs(1.0*$bx - $cx) < $epsilon} {
+        # On the line
+        if {abs(1.0*$ax - $bx) < $epsilon} { return 0 }
+        return -1
+    }
+
+    # caclulate m & b
+    set m [expr {1.0*($cy - $by) / ($cx - $bx)}]
+    set b [expr {$by - $m * $bx}]
+    set line_y [expr {$m * $ax + $b}]
+
+    return [expr {abs($ay - $line_y) < $epsilon ? 0 : \
+    $ay > $line_y ? 1 : -1}]
+}
+
+proc mrfclip::S_point_compare {a b} {
+    # If 'a' should be ordered before 'b,' return -1, otherwise return 1
+    # If a is the same edge as b, return 0
+    #
+    # Sort first by y-coordinate intersecting the sweep line
+
+    # First check if they are equal (used by BST delete)
+    if {$a eq $b} {
+        return 0
+    }
+
+    # Check if y-coordinate of a's left endpoint (the sweep line) is
+    # above or below edge b.
+    set p [point_above_line {*}[set [set ${a}::point]::coord] \
+    {*}[set [set ${b}::point]::coord] {*}[set [set [set ${b}::other]::point]::coord]]
+
+    if {$p != 0} {
+        return $p
+    }
+
+    # 0 means on b, but b could be vertical
+    # check vertical case first
+    set aline [list [set [set ${a}::point]::coord] [set [set [set ${a}::other]::point]::coord]]
+    set bline [list [set [set ${b}::point]::coord] [set [set [set ${b}::other]::point]::coord]]
+    set epsilon 0.00000000001
+    if {abs([lindex $bline 0 0] - [lindex $bline 1 0]) < $epsilon} {
+        # vertical
+        # Compare by lower y-coord
+        if {[lindex $aline 0 1] < [lindex $bline 0 1]} {
+            return -1
+        }
+        if {[lindex $aline 0 1] > [lindex $bline 0 1]} {
+            return 1
+        }
+        # same y-coord, compare other point
+    }
+
+    # on the line, so test the right endpoint of edge 'a'
+    set p [point_above_line {*}[set [set [set ${a}::other]::point]::coord] \
+    {*}[set [set ${b}::point]::coord] {*}[set [set [set ${b}::other]::point]::coord]]
+
+    # For collinear edges, insert subject first always
+    return [expr {$p != 0 ? $p : [set ${a}::polytype] eq "SUBJECT" ? -1 : 1}]
+}
+
 proc mrfclip::compare_events {a b} {
     # Return:
     #   -1 if a should be before b
@@ -77,28 +160,6 @@ proc mrfclip::compare_events {a b} {
 
     # Both are left, so sort by S ordering
     return [S_point_compare $a $b]
-}
-
-proc mrfclip::queue_insert {event} {
-    # Insert a sweep event into the priority queue
-    #
-    # Arguments:
-    # event     The sweep event to insert
-    #
-    # Returns the new priority queue value
-    variable queue
-
-    if {$queue eq ""} {
-        return [set queue [list $event]]
-    }
-
-    for {set i 0} {$i < [llength $queue]} {incr i} {
-        set c [compare_events $event [lindex $queue $i]]
-        if {$c == -1} {
-            return [set queue [linsert $queue $i $event]]
-        }
-    }
-    return [lappend queue $event]
 }
 
 proc mrfclip::create_edge {p1 p2 polytype} {
@@ -192,233 +253,36 @@ proc mrfclip::create_poly {poly polytype} {
     return $events
 }
 
-proc mrfclip::lshift {listVar} {
-    # Remove the first item from the specified list and return its value
-
-    upvar 1 $listVar l
-    if {![info exists l]} {
-        # make the error message show the real variable name
-        error "can't read \"$listVar\": no such variable"
+proc mrfclip::set_inside_flags {curr_event prev_event} {
+    # set the inside flags for this event in s
+    #
+    # arguments:
+    # curr_event    the event being inserted into s
+    # prev_event    the preceeding event in s
+    #
+    # return nothing
+    if {$prev_event eq {} || $prev_event eq "NULL"} {
+        set ${curr_event}::inout 0
+        set ${curr_event}::inside 0
+    } elseif {[set ${curr_event}::polytype] eq [set ${prev_event}::polytype]} {
+        set ${curr_event}::inside [set ${prev_event}::inside]
+        set ${curr_event}::inout [expr {![set ${prev_event}::inout]}]
+    } else {
+        # Transition of a vertical line is the opposite, since this
+        # is a vertical sweep line
+        set ${curr_event}::inside [expr {[::mrfclip::event is_vertical $prev_event] ? [set ${prev_event}::inout] : ![set ${prev_event}::inout]}]
+        set ${curr_event}::inout [set ${prev_event}::inside]
     }
-    if {![llength $l]} {error Empty}
-    set r [lindex $l 0]
-    set l [lreplace $l [set l 0] 0]
-    return $r
 }
 
-proc mrfclip::S_point_compare {a b} {
-    # If 'a' should be ordered before 'b,' return -1, otherwise return 1
-    # If a is the same edge as b, return 0
-    #
-    # Sort first by y-coordinate intersecting the sweep line
-
-    # First check if they are equal (used by BST delete)
-    if {$a eq $b} {
-        return 0
+proc mrfclip::edges_overlap {c1l c1r c2l c2r} {
+    if {[coords_equal $c1l $c2l] && [coords_equal $c1r $c2r]} {
+        return 1
     }
-
-    # Check if y-coordinate of a's left endpoint (the sweep line) is
-    # above or below edge b.
-    set p [point_above_line {*}[set [set ${a}::point]::coord] \
-    {*}[set [set ${b}::point]::coord] {*}[set [set [set ${b}::other]::point]::coord]]
-
-    if {$p != 0} {
-        return $p
+    if {[coords_equal $c1l $c2r] && [coords_equal $c1r $c2l]} {
+        return 1
     }
-
-    # 0 means on b, but b could be vertical
-    # check vertical case first
-    set aline [list [set [set ${a}::point]::coord] [set [set [set ${a}::other]::point]::coord]]
-    set bline [list [set [set ${b}::point]::coord] [set [set [set ${b}::other]::point]::coord]]
-    set epsilon 0.00000000001
-    if {abs([lindex $bline 0 0] - [lindex $bline 1 0]) < $epsilon} {
-        # vertical
-        # Compare by lower y-coord
-        if {[lindex $aline 0 1] < [lindex $bline 0 1]} {
-            return -1
-        }
-        if {[lindex $aline 0 1] > [lindex $bline 0 1]} {
-            return 1
-        }
-        # same y-coord, compare other point
-    }
-
-    # on the line, so test the right endpoint of edge 'a'
-    set p [point_above_line {*}[set [set [set ${a}::other]::point]::coord] \
-    {*}[set [set ${b}::point]::coord] {*}[set [set [set ${b}::other]::point]::coord]]
-
-    # For collinear edges, insert subject first always
-    return [expr {$p != 0 ? $p : [set ${a}::polytype] eq "SUBJECT" ? -1 : 1}]
-}
-
-proc mrfclip::insert_S {Slist event} {
-    # Insert an edge, represented by its left endpoint, into S
-    #
-    # Arguments:
-    # S     Set of edges intersecting the sweep line
-    # event The left endpoint sweep event representing this edge
-    #
-    # Return the position in S of the insertion
-    upvar $Slist S
-
-    if {[llength $S] == 0} {
-        lappend S $event
-        return 0
-    }
-
-    set ex [lindex [set [set ${event}::point]::coord] 0]
-    set ey [lindex [set [set ${event}::point]::coord] 1]
-
-    for {set i 0} {$i < [llength $S]} {incr i} {
-        set this [lindex $S $i]
-        if {[S_point_compare $event $this] < 0} {
-            set S [linsert $S $i $event]
-            return $i
-        }
-    }
-    lappend S $event
-    return [expr {[llength $S] - 1}]
-}
-
-proc mrfclip::find_in_S {S element} {
-    # Find the position of this element in S
-    #
-    # Arguments:
-    # S         List of sweep events
-    # element   The sweep event to find
-    for {set i 0} {$i < [llength $S]} {incr i} {
-        if {[lindex $S $i] == $element} {
-            return $i
-        }
-    }
-}
-proc mrfclip::poly_from_chain {chain} {
-    # Convert a chain to a list of points (polygon)
-    set poly {}
-    foreach point [set ${chain}::points] {
-        lappend poly {*}[set ${point}::coord]
-    }
-    return $poly
-}
-
-proc mrfclip::create_chains {segs} {
-    # Connect all segments in the solution into an arbitrary number of polygons
-    #
-    # Arguments:
-    # segs      List of segments
-    #
-    # Return list of polygons
-
-    # C is dictionary of chain endpoints indexed by point name
-    # R is list of resulting polygons
-    set C [dict create]
-    set R {}
-
-    foreach curr $segs {
-        # Shift out current list of two points
-        set sl [lindex $curr 0]
-        set sr [lindex $curr 1]
-
-        # check if a matching point for this left event exists
-
-        # If both points already exist, then connect the chains without
-        # creating any new chain objects
-        if {[dict exists $C $sl] && [dict exists $C $sr]} {
-            #puts "DEBUG: Both SL and SR found"
-            set slC [dict get $C $sl]
-            set srC [dict get $C $sr]
-            dict unset C $sl
-            dict unset C $sr
-            if {$slC eq $srC} {
-                # Completing a chain and skip
-                lappend R [poly_from_chain $slC]
-                continue
-            }
-
-            # Merge chains together. Reuse left, destroy right.
-            if {[set ${slC}::right] eq $sl} {
-                if {[set ${srC}::left] eq $sr} {
-                    # append in order
-                    foreach point [set ${srC}::points] {
-                        lappend ${slC}::points $point
-                    }
-                    set ${slC}::right [set ${srC}::right]
-                } else {
-                    set rpoints [set ${srC}::points]
-                    set nrpoints [llength $rpoints]
-                    for {set i [expr {$nrpoints-1}]} {$i >= 0} {incr i -1} {
-                        set point [lindex $rpoints $i]
-                        lappend ${slC}::points $point
-                    }
-                    set ${slC}::right [set ${srC}::left]
-                }
-            } else {
-                if {[set ${srC}::left] eq $sr} {
-                    # append in order
-                    foreach point [set ${srC}::points] {
-                        set ${slC}::points [linsert [set ${slC}::points] 0 $point]
-                    }
-                    set ${slC}::left [set ${srC}::right]
-                } else {
-                    set rpoints [set ${srC}::points]
-                    set nrpoints [llength $rpoints]
-                    for {set i [expr {$nrpoints-1}]} {$i >= 0} {incr i -1} {
-                        set point [lindex $rpoints $i]
-                        set ${slC}::points [linsert [set ${slC}::points] 0 $point]
-                    }
-                    set ${slC}::left [set ${srC}::left]
-                }
-            }
-            # Replace endpoints in C
-            dict set C [set ${slC}::left] $slC
-            dict set C [set ${slC}::right] $slC
-            continue
-        }
-
-        if {[dict exists $C $sl]} {
-            set chain [dict get $C $sl]
-            if {[set ${chain}::left] eq $sl} {
-                # Connect to left end and replace left with sr
-                set ${chain}::points [linsert [set ${chain}::points] 0 $sr]
-                set ${chain}::left $sr
-            } else {
-                # Connect to right end and replace right with sr
-                lappend ${chain}::points $sr
-                set ${chain}::right $sr
-            }
-
-            dict unset C $sl
-            dict set C $sr $chain
-
-            continue
-        } elseif {[dict exists $C $sr]} {
-            set chain [dict get $C $sr]
-            if {[set ${chain}::left] eq $sr} {
-                # Connect to left end and replace left with sl
-                set ${chain}::points [linsert [set ${chain}::points] 0 $sl]
-                set ${chain}::left $sl
-            } else {
-                # Connect to right end and replace right with sl
-                lappend ${chain}::points $sl
-                set ${chain}::right $sl
-            }
-
-            dict unset C $sr
-            dict set C $sl $chain
-
-            continue
-        }
-
-        # Create new chain
-        set c [::mrfclip::chain init]
-        lappend ${c}::points $sl
-        lappend ${c}::points $sr
-        set ${c}::left $sl
-        set ${c}::right $sr
-        dict set C $sl $c
-        dict set C $sr $c
-    }
-    return $R
+    return 0
 }
 
 proc mrfclip::intersect {p q} {
@@ -526,16 +390,6 @@ proc mrfclip::intersect {p q} {
     [expr {$px + $t*($pprx - $px)}] \
     [expr {$py + $t*($ppry - $py)}] \
     ]
-}
-
-proc mrfclip::edges_overlap {c1l c1r c2l c2r} {
-    if {[coords_equal $c1l $c2l] && [coords_equal $c1r $c2r]} {
-        return 1
-    }
-    if {[coords_equal $c1l $c2r] && [coords_equal $c1r $c2l]} {
-        return 1
-    }
-    return 0
 }
 
 proc mrfclip::possible_inter {e1 e2} {
@@ -800,70 +654,133 @@ proc mrfclip::possible_inter {e1 e2} {
     $queue insert $ner2
 }
 
-proc mrfclip::coords_equal {a b} {
-    set epsilon 0.00000000001
-    return [expr { \
-        abs([lindex $a 0] - [lindex $b 0]) < $epsilon \
-        && abs([lindex $a 1] - [lindex $b 1]) < $epsilon \
-    }]
-}
-
-proc mrfclip::event_is_vertical {event} {
-    set p1 [set [set ${event}::point]::coord]
-    set p2 [set [set [set ${event}::other]::point]::coord]
-    return [expr {[lindex $p1 0] == [lindex $p2 0] ? 1 : 0}]
-}
-
-proc mrfclip::set_inside_flags {curr_event prev_event} {
-    # set the inside flags for this event in s
-    #
-    # arguments:
-    # curr_event    the event being inserted into s
-    # prev_event    the preceeding event in s
-    #
-    # return nothing
-    if {$prev_event eq {} || $prev_event eq "NULL"} {
-        set ${curr_event}::inout 0
-        set ${curr_event}::inside 0
-    } elseif {[set ${curr_event}::polytype] eq [set ${prev_event}::polytype]} {
-        set ${curr_event}::inside [set ${prev_event}::inside]
-        set ${curr_event}::inout [expr {![set ${prev_event}::inout]}]
-    } else {
-        # Transition of a vertical line is the opposite, since this
-        # is a vertical sweep line
-        set ${curr_event}::inside [expr {[event_is_vertical $prev_event] ? [set ${prev_event}::inout] : ![set ${prev_event}::inout]}]
-        set ${curr_event}::inout [set ${prev_event}::inside]
+proc mrfclip::poly_from_chain {chain} {
+    # Convert a chain to a list of points (polygon)
+    set poly {}
+    foreach point [set ${chain}::points] {
+        lappend poly {*}[set ${point}::coord]
     }
+    return $poly
 }
 
-proc mrfclip::point_above_line {ax ay bx by cx cy} {
-    # check if a point is above or below the speified line
-    # the point could be a left or right endpoint
+proc mrfclip::create_chains {segs} {
+    # Connect all segments in the solution into an arbitrary number of polygons
     #
-    # arguments:
-    # point     the point (x,y coords) to test
-    # line      the line (two points) to test against
+    # Arguments:
+    # segs      List of segments
     #
-    # returns:
-    # 1  - above
-    # 0  - on
-    # -1 - below
+    # Return list of polygons
 
-    # If the line is vertical
-    set epsilon 0.00000000001
-    if {abs(1.0*$bx - $cx) < $epsilon} {
-        # On the line
-        if {abs(1.0*$ax - $bx) < $epsilon} { return 0 }
-        return -1
+    # C is dictionary of chain endpoints indexed by point name
+    # R is list of resulting polygons
+    set C [dict create]
+    set R {}
+
+    foreach curr $segs {
+        # Shift out current list of two points
+        set sl [lindex $curr 0]
+        set sr [lindex $curr 1]
+
+        # check if a matching point for this left event exists
+
+        # If both points already exist, then connect the chains without
+        # creating any new chain objects
+        if {[dict exists $C $sl] && [dict exists $C $sr]} {
+            #puts "DEBUG: Both SL and SR found"
+            set slC [dict get $C $sl]
+            set srC [dict get $C $sr]
+            dict unset C $sl
+            dict unset C $sr
+            if {$slC eq $srC} {
+                # Completing a chain and skip
+                lappend R [poly_from_chain $slC]
+                continue
+            }
+
+            # Merge chains together. Reuse left, destroy right.
+            if {[set ${slC}::right] eq $sl} {
+                if {[set ${srC}::left] eq $sr} {
+                    # append in order
+                    foreach point [set ${srC}::points] {
+                        lappend ${slC}::points $point
+                    }
+                    set ${slC}::right [set ${srC}::right]
+                } else {
+                    set rpoints [set ${srC}::points]
+                    set nrpoints [llength $rpoints]
+                    for {set i [expr {$nrpoints-1}]} {$i >= 0} {incr i -1} {
+                        set point [lindex $rpoints $i]
+                        lappend ${slC}::points $point
+                    }
+                    set ${slC}::right [set ${srC}::left]
+                }
+            } else {
+                if {[set ${srC}::left] eq $sr} {
+                    # append in order
+                    foreach point [set ${srC}::points] {
+                        set ${slC}::points [linsert [set ${slC}::points] 0 $point]
+                    }
+                    set ${slC}::left [set ${srC}::right]
+                } else {
+                    set rpoints [set ${srC}::points]
+                    set nrpoints [llength $rpoints]
+                    for {set i [expr {$nrpoints-1}]} {$i >= 0} {incr i -1} {
+                        set point [lindex $rpoints $i]
+                        set ${slC}::points [linsert [set ${slC}::points] 0 $point]
+                    }
+                    set ${slC}::left [set ${srC}::left]
+                }
+            }
+            # Replace endpoints in C
+            dict set C [set ${slC}::left] $slC
+            dict set C [set ${slC}::right] $slC
+            continue
+        }
+
+        if {[dict exists $C $sl]} {
+            set chain [dict get $C $sl]
+            if {[set ${chain}::left] eq $sl} {
+                # Connect to left end and replace left with sr
+                set ${chain}::points [linsert [set ${chain}::points] 0 $sr]
+                set ${chain}::left $sr
+            } else {
+                # Connect to right end and replace right with sr
+                lappend ${chain}::points $sr
+                set ${chain}::right $sr
+            }
+
+            dict unset C $sl
+            dict set C $sr $chain
+
+            continue
+        } elseif {[dict exists $C $sr]} {
+            set chain [dict get $C $sr]
+            if {[set ${chain}::left] eq $sr} {
+                # Connect to left end and replace left with sl
+                set ${chain}::points [linsert [set ${chain}::points] 0 $sl]
+                set ${chain}::left $sl
+            } else {
+                # Connect to right end and replace right with sl
+                lappend ${chain}::points $sl
+                set ${chain}::right $sl
+            }
+
+            dict unset C $sr
+            dict set C $sl $chain
+
+            continue
+        }
+
+        # Create new chain
+        set c [::mrfclip::chain init]
+        lappend ${c}::points $sl
+        lappend ${c}::points $sr
+        set ${c}::left $sl
+        set ${c}::right $sr
+        dict set C $sl $c
+        dict set C $sr $c
     }
-
-    # caclulate m & b
-    set m [expr {1.0*($cy - $by) / ($cx - $bx)}]
-    set b [expr {$by - $m * $bx}]
-    set line_y [expr {$m * $ax + $b}]
-
-    return [expr {abs($ay - $line_y) < $epsilon ? 0 : \
-    $ay > $line_y ? 1 : -1}]
+    return $R
 }
 
 proc mrfclip::mrfclip {subject clipping operation} {
