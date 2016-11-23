@@ -76,7 +76,7 @@ namespace eval avltree {
                         if {[regexp {^-} $str]} { set p "|" }
                     }
                 }
-                lappend r "---[namespace tail $node]:[set ${node}::height]:[get_balance $node]:[set ${node}::value]"
+                lappend r "---[namespace tail $node]:[set ${node}::height]:[get_balance $node]:[set ${node}::value]:[set ${node}::parent]"
                 if {[info exists right_str_list]} {
                     set p "|"
                     foreach str $right_str_list {
@@ -213,10 +213,10 @@ namespace eval avltree {
                         }
                         set ${root_node}::parent $parent_node
                         return $root_node
-                    } elseif {[set ${root_node}::value] != $value} {
+                    } elseif {[set comp [compare $value [set ${root_node}::value]]] != 0} {
                         # insert left/right
                         set LR [expr { \
-                            [compare $value [set ${root_node}::value]] < 0 ? \
+                            $comp < 0 ? \
                             "left" : "right"}]
                         set r [insert $value [set ${root_node}::child_${LR}] \
                         $root_node $LR]
@@ -299,18 +299,98 @@ namespace eval avltree {
 
                     set LR "NULL"
                     if {[compare $value [set ${root_node}::value]] == 0} {
-                        # rotate
-                        set LR [expr {[get_balance $root_node] < 0 ? "right" : "left"}]
-                        set root_node [rotate $root_node $LR]
-                        if {$parent_side ne "NULL"} {
-                            set ${parent_node}::child_${parent_side} $root_node
-                        } else {
-                            set $parent_node $root_node
-                        }
-                        if {$root_node eq "::avltree::node::NIL"} {
-                            # deleted
+                        ### 1. find immediate left/right node of children only
+                        # 1. check if node has only one left or right children
+                        if {[set ${root_node}::child_left] eq "::avltree::node::NIL"} {
+                            if {[set ${root_node}::child_right] eq "::avltree::node::NIL"} {
+                                # no children, simply delete this node and update its parent to NIL
+                                if {$parent_side eq "NULL"} {
+                                    set $parent_node "::avltree::node::NIL"
+                                } else {
+                                    set ${parent_node}::child_${parent_side} "::avltree::node::NIL"
+                                }
+                                namespace delete $root_node
+                                return 1
+                            }
+                            # delete this node and connect its parent to this child right
+                            if {$parent_side eq "NULL"} {
+                                set $parent_node [set ${root_node}::child_right]
+                                set [set ${root_node}::child_right]::parent $parent_node
+                                namespace delete $root_node
+                                set root_node [set ${parent_node}]
+                            } else {
+                                set ${parent_node}::child_${parent_side} [set ${root_node}::child_right]
+                                set [set ${root_node}::child_right]::parent $parent_node
+                                namespace delete $root_node
+                                set root_node [set ${parent_node}::child_${parent_side}]
+                            }
+                            adjust_balance $root_node $parent_node $parent_side
+                            return 1
+                        } elseif {[set ${root_node}::child_right] eq "::avltree::node::NIL"} {
+                            if {[set ${root_node}::child_left] eq "::avltree::node::NIL"} {
+                                # no children, simply delete this node and update its parent to NIL
+                                if {$parent_side eq "NULL"} {
+                                    set $parent_node "::avltree::node::NIL"
+                                } else {
+                                    set ${parent_node}::child_${parent_side} "::avltree::node::NIL"
+                                }
+                                namespace delete $root_node
+                                return 1
+                            }
+                            if {$parent_side eq "NULL"} {
+                                set $parent_node [set ${root_node}::child_left]
+                                set [set ${root_node}::child_left]::parent $parent_node
+                                namespace delete $root_node
+                                set root_node [set ${parent_node}]
+                            } else {
+                                set ${parent_node}::child_${parent_side} [set ${root_node}::child_left]
+                                set [set ${root_node}::child_left]::parent $parent_node
+                                namespace delete $root_node
+                                set root_node [set ${parent_node}::child_${parent_side}]
+                            }
+                            adjust_balance $root_node $parent_node $parent_side
                             return 1
                         }
+                        # have two children
+                        if {[get_balance $root_node] < 0} {
+                            set copy_node [rightmost_node [set ${root_node}::child_left]]
+                            set side "left"
+                        } else {
+                            set copy_node [leftmost_node [set ${root_node}::child_right]]
+                            set side "right"
+                        }
+                        # 2. copy its value here
+                        set ${root_node}::value [set ${copy_node}::value]
+                        # 2b. get that node's parent
+                        set copy_parent [set ${copy_node}::parent]
+                        if {[set ${copy_parent}::child_left] eq $copy_node} {
+                            set copy_pside "left"
+                        } else {
+                            set copy_pside "right"
+                        }
+                        set ${copy_parent}::child_${copy_pside} "::avltree::node::NIL"
+                        # 2c. if that node had a child on the non-left/rightmost side, update
+                        # that child to point to new parent and parent to point to child
+                        if {[set ${copy_node}::child_${side}] ne "::avltree::node::NIL"} {
+                            set ${copy_parent}::child_${copy_pside} [set ${copy_node}::child_${side}]
+                            set [set ${copy_node}::child_${side}]::parent $copy_parent
+                        }
+                        # 3. delete that node
+                        namespace delete $copy_node
+                        # 4. unwind from the copy parent until this node,
+                        #    balancing along the way
+                        while {$copy_parent ne $root_node} {
+                            set copy_pparent [set ${copy_parent}::parent]
+                            if {[set ${copy_pparent}::child_left] eq $copy_parent} {
+                                set ppside "left"
+                            } else {
+                                set ppside "right"
+                            }
+                            adjust_balance $copy_parent $copy_pparent $ppside
+                            set copy_parent $copy_pparent
+                        }
+                        adjust_balance $root_node $parent_node $parent_side
+                        return 1
                     }
                     if {$LR eq "NULL"} {
                         set LR [expr {[compare $value [set ${root_node}::value]] < 0 ? "left" : "right"}]
@@ -395,7 +475,7 @@ namespace eval avltree {
                 }
 
                 proc rightmost_node {{node "NULL"}} {
-                    # Return the leftmost node in the tree
+                    # Return the rightmost node in the tree
                     variable tree_root
                     if {$node eq "NULL"} {
                         set node $tree_root
