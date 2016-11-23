@@ -359,6 +359,7 @@ unitt::suite "poly" {
         set poly2 {10 0 5 5 10 10 15 5}
         set r1 [mrfclip::create_poly $poly1 SUBJECT]
         set r2 [mrfclip::create_poly $poly2 CLIPPING]
+        mrfclip::merge_common_poly_points
         # indices of poly correpsonding with r
         # r     poly
         # 0     3
@@ -471,7 +472,6 @@ unitt::suite "poly" {
         # Number of points currently should be 8, but after merging
         # should be 6
         unitt::assert_eq [llength [lsort -unique $points]] 4
-        #unitt::assert_eq [llength [lsort -unique $points]] 8
     }
 }
 
