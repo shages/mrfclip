@@ -9,9 +9,9 @@ package require mrfclip
 source [file join $dir scripts testutils.tcl]
 set rdir [file join $dir results [lindex [file split [file rootname [info script]]] end]]
 
-set poly1 {25 75 125 75 75 125}
-set poly2 {75 75 175 75 125 125}
-set poly3 {50 50 100 100 150 50}
+set poly1 {{25 75 125 75 75 125}}
+set poly2 {{75 75 175 75 125 125}}
+set poly3 {{50 50 100 100 150 50}}
 
 #_clip_test             row   col     A       B      C      Clip
 _clip_test 0 0 {OR}         [list $poly1 $poly2] $rdir

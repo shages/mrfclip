@@ -20,8 +20,9 @@ for {set r 0} {$r < $p2} {set r [expr {$r + $p2/$N}]} {
     set y [format "%.4f" [expr {$yoff + sin($r)*$ampfactorx}]]
     lappend poly1 {*}[list $x $y]
 }
+set poly1 [list $poly1]
 #set poly2 {-2 -0.5 2 -0.5 2 0.5 -2 0.5}
-set poly2 {50 100 50 300 350 300 350 100}
+set poly2 {{50 100 50 300 350 300 350 100}}
 
 set wh {400 400}
 

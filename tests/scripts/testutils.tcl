@@ -1,4 +1,4 @@
-proc _clip_test {row col ops polylist {resultdir .} {wh {200 200}}} {
+proc _clip_test {row col ops polylist {resultdir .} {wh {200 200}} {linew 2}} {
     file mkdir $resultdir
 
     set width [lindex $wh 0]
@@ -38,7 +38,9 @@ proc _clip_test {row col ops polylist {resultdir .} {wh {200 200}}} {
 
     # Draw polylist
     for {set i 0} {$i < [llength $polylist]} {incr i} {
-        $canv create polygon {*}[lindex $polylist $i] -fill {} -outline [lindex $colors $i] -width 2
+        foreach poly [lindex $polylist $i] {
+            $canv create polygon {*}$poly -fill {} -outline [lindex $colors $i] -width $linew
+        }
         $canv create text 0 [expr ($i+1)*10] -text [lindex $letters $i] -fill [lindex $colors $i] -anchor nw -font {courier 10}
     }
 
@@ -50,7 +52,7 @@ proc _clip_test {row col ops polylist {resultdir .} {wh {200 200}}} {
             }
             # Draw outline second to indicate all resulting polygons
             foreach poly $cliplist {
-                $canv create polygon {*}$poly -fill {} -outline \#000000 -width 2
+                $canv create polygon {*}$poly -fill {} -outline \#000000 -width $linew
             }
         }
     }
