@@ -116,7 +116,7 @@ proc mrfclip::compare_events {a b} {
     set bx [lindex $bpoint 0]
     set by [lindex $bpoint 1]
 
-    # Sort top to bottom
+    # Sort left to right
     if {$ax - $bx < -$epsilon} { return -1 }
     if {$ax - $bx > $epsilon}  { return 1 }
 
@@ -143,10 +143,10 @@ proc mrfclip::compare_events {a b} {
         # the comparison works both ways
         set aleft [set [set [set ${a}::other]::point]::coord]
         set bleft [set [set [set ${b}::other]::point]::coord]
-        set alx [expr {[lindex $aleft 0]*1.0}]
-        set aly [expr {[lindex $aleft 1]*1.0}]
-        set blx [expr {[lindex $bleft 0]*1.0}]
-        set bly [expr {[lindex $bleft 1]*1.0}]
+        set alx [lindex $aleft 0]
+        set aly [lindex $aleft 1]
+        set blx [lindex $bleft 0]
+        set bly [lindex $bleft 1]
 
         if {abs($aly - $bly) < $epsilon} {
             # Same y, so compare x instead
