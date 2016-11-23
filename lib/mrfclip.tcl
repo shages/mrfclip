@@ -235,21 +235,6 @@ proc mrfclip::create_poly {poly polytype} {
         $queue insert $event
     }
 
-    # Merge common points
-    set node [$queue leftmost_node]
-    while {[set next [$queue node_right_of $node]] ne "::avltree::node::NIL"} {
-        # Check if the next event's point is different, and if so fix it
-        if {[set [set ${next}::value]::point] ne [set [set ${node}::value]::point]} {
-            set this_coord [set [set [set ${node}::value]::point]::coord]
-            set next_coord [set [set [set ${next}::value]::point]::coord]
-            if {[lindex $this_coord 0] == [lindex $next_coord 0] && \
-            [lindex $this_coord 1] == [lindex $next_coord 1]} {
-                set [set ${next}::value]::point [set [set ${node}::value]::point]
-            }
-        }
-        set node $next
-    }
-
     # Return the events (only for testing)
     return $events
 }
@@ -823,6 +808,20 @@ proc mrfclip::mrfclip {subject clipping operation} {
     }
     foreach clip $clipping {
         create_poly $clip CLIPPING
+    }
+
+    # Merge common points
+    set node [$queue leftmost_node]
+    while {[set next [$queue node_right_of $node]] ne "::avltree::node::NIL"} {
+        # Check if the next event's point is different, and if so fix it
+        if {[set [set ${next}::value]::point] ne [set [set ${node}::value]::point]} {
+            set this_coord [set [set [set ${node}::value]::point]::coord]
+            set next_coord [set [set [set ${next}::value]::point]::coord]
+            if {[coords_equal $this_coord $next_coord]} {
+                set [set ${next}::value]::point [set [set ${node}::value]::point]
+            }
+        }
+        set node $next
     }
 
     set S [::avltree::create]
