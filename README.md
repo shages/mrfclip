@@ -15,15 +15,15 @@ Download and directly load into Tcl
   * **NOT** - difference
   * **XOR** - (A NOT B) OR (B NOT A)
 - Supports all degenerate cases
-- Runs in O(n log n+k) time, where n is the number of input points and k is
+- Runs in O(n log n+k) time*, where n is the number of input points and k is
   the number of intersections
+  * \*The last part of the algorithm is currently implemented in O(n<sup>2</sup>) time. I plan to change the algorithm to work in O(log n) time in the future.
   * \*XOR currently runs in longer time
 - Partial support for holes
 
 ### Known Issues
-- Polygons with self-overlapping edges are not currently supported
-- Holes have no formal support. Hole polygons are returned, but just as any
-  other polygon.
+- Polygons with self-overlapping edges are not supported
+- While holes are supported as input and output, there is no special handling when returning holes. Holes and their enclosing polygons are not associated, and may be returned in any order.
 
 
 ## Examples
@@ -33,15 +33,21 @@ Download and directly load into Tcl
 <img src="/doc/images/t02/r0_1.png" alt="A OR B" width="200" />
 <img src="/doc/images/t02/r0_4.png" alt="A NOT B" width="200" />
 <img src="/doc/images/t02/r0_3.png" alt="A XOR B" width="200" />
-- Self-intersecting (second image showing holes improperly drawn)
+- Self-intersecting (second image showing holes, though improperly drawn)
 
 <img src="/doc/images/t01/r0_2.png" alt="A AND B" width="200" />
 <img src="/doc/images/t01/r0_1.png" alt="A OR B" width="200" />
 <img src="/doc/images/t17/r0_2.png" alt="A AND B" width="200" />
 - Degenerate
 
+<img src="/doc/images/t15/r3_0.png" alt="A NOT B AND" width="200" />
 <img src="/doc/images/t15/r3_2.png" alt="A NOT B AND" width="200" />
+
+
+<img src="/doc/images/t12/r3_0.png" alt="A NOT B OR C" width="200" />
 <img src="/doc/images/t12/r3_1.png" alt="A NOT B OR C" width="200" />
+
+See [Tests](#tests) for more example cases.
 
 ## Usage
 Clipping is done by forming expressions with `mrfclip::clip`.
@@ -49,17 +55,21 @@ Clipping is done by forming expressions with `mrfclip::clip`.
 ```tcl
 set poly1 {0 0 0 10 10 10 10 0}
 set poly2 {5 5 5 15 15 15 15 5}
-mrfclip::clip $poly1 AND $poly2
+set result [mrfclip::clip $poly1 AND $poly2]
+# {10.0 10.0 10.0 5.0 5.0 5.0 5.0 10.0}
 ```
 
 Expressions can be strung together
 ```tcl
-mrfclip::clip $poly1 OR $poly2 AND $poly3
+set poly3 {0 2.5 20 2.5 20 7.5 0 7.5}
+mrfclip::clip $poly1 AND $poly2 OR $poly3
+# {20.0 7.5 20.0 2.5 0.0 2.5 0.0 7.5 5.0 7.5 5.0 10.0 10.0 10.0 10.0 7.5}
 ```
 
 and embedded
 ```tcl
-mrfclip::clip [mrfclip::clip $poly1 OR $poly2] AND $poly3
+mrfclip::clip $poly1 AND [mrfclip::clip $poly2 OR $poly3]
+# {10.0 10.0 10.0 2.5 0.0 2.5 0.0 7.5 5.0 7.5 5.0 10.0}
 ```
 
 Multiple polygon (possibly disjoint) input is supported
@@ -67,6 +77,8 @@ Multiple polygon (possibly disjoint) input is supported
 set poly1 {{0 0 0 10 10 10 10 0} {10 10 10 20 20 20 20 10}}
 set poly2 {5 5 5 15 15 15 15 5}
 mrfclip::clip $poly1 AND $poly2
+# {10.0 10.0 10.0 5.0 5.0 5.0 5.0 10.0} {15.0 15.0 15.0 10.0 10.0 10.0 10.0 15.0}
+
 ```
 
 Polygons are clipped strictly left to right. Use command substitution as shown above to achieve the desired clipping.
