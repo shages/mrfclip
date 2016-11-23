@@ -211,6 +211,12 @@ proc mrfclip::create_poly {poly polytype} {
     # Return all sweep events of the polygon
     variable queue
 
+    # Unclose closed poly
+    if {[lindex $poly 0] == [lindex $poly end-1] \
+        && [lindex $poly 1] == [lindex $poly end]} {
+        set poly [lrange $poly 0 end-2]
+    }
+
     # Convert polygon coordinates to Points
     set points {}
     foreach {x y} $poly {
