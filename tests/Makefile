@@ -14,7 +14,7 @@ t%:
 
 # Convert postscript to png with ghostscript
 %.png: %.ps
-	gs -dSAFER -sDEVICE=png16m -dGraphicsAlphaBits=4 -dFitPage -g300x300 -o $@ $^
+	gs -dSAFER -sDEVICE=png16m -dGraphicsAlphaBits=4 -dFitPage -g200x200 -o $@ $^
 
 clean_png:
 	$(RM) results/*/*.png

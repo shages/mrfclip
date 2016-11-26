@@ -1,4 +1,4 @@
-proc _clip_test {row col ops polylist {resultdir .} {wh {200 200}} {linew 2}} {
+proc _clip_test {row col ops polylist {resultdir .} {wh {200 200}} {linew 1}} {
     file mkdir $resultdir
 
     set width [lindex $wh 0]
@@ -10,8 +10,11 @@ proc _clip_test {row col ops polylist {resultdir .} {wh {200 200}} {linew 2}} {
     grid configure $canv -row $row -column $col
 
     # Draw polylist
-    set colors {\#0000ff \#ff0000 \#00ffff \#ffff00 \#ff00ff}
-    set letters {A B C D E}
+    set colors {
+        \#e74c3c \#3498db \#2ecc71 \#9b59b6
+        \#f1c40f \#1abc9c \#e67e22 \#34495e
+    }
+    set letters {A B C D E F G H}
     set t {A}
     lappend e [lindex $polylist 0]
     if {$ops eq ""} {
@@ -48,16 +51,16 @@ proc _clip_test {row col ops polylist {resultdir .} {wh {200 200}} {linew 2}} {
     if {$t ne "Original"} {
         if {[llength $cliplist]} {
             foreach poly $cliplist {
-                $canv create polygon {*}$poly -fill \#00ff00 -outline {}
+                $canv create polygon {*}$poly -fill \#ecf0f1 -outline {}
             }
             # Draw outline second to indicate all resulting polygons
             foreach poly $cliplist {
-                $canv create polygon {*}$poly -fill {} -outline \#000000 -width $linew
+                $canv create polygon {*}$poly -fill {} -outline \#34495e -width $linew
             }
         }
     }
 
-    # Annotate clip result onto plot 
+    # Annotate clip result onto plot
     #$canv create text 0 $height -text $cliplist -fill \#000000 -anchor sw -font {courier 6} -width $width
 
     # Write output
