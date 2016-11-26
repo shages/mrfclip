@@ -529,7 +529,8 @@ unitt::suite "point_above_line" {
         # Positive slope above - reverse coords
         set point {5 6}
         set line {10 10 0 0}
-        unitt::assert_eq [mrfclip::point_above_line {*}$point {*}$line] 1
+        # negate result b/c cross product
+        unitt::assert_eq [mrfclip::point_above_line {*}$point {*}$line] -1
     }
     {
         # Negative slope below
@@ -547,13 +548,15 @@ unitt::suite "point_above_line" {
         # Negative slope above - reverse coords
         set point {5 6}
         set line {10 0 0 10}
-        unitt::assert_eq [mrfclip::point_above_line {*}$point {*}$line] 1
+        # negate result b/c cross product
+        unitt::assert_eq [mrfclip::point_above_line {*}$point {*}$line] -1
     }
     {
         # Negative slope above - floating point
         set point {5.0 5.0001}
         set line {10.0 0.0 0.0 10.0}
-        unitt::assert_eq [mrfclip::point_above_line {*}$point {*}$line] 1
+        # negate result b/c cross product
+        unitt::assert_eq [mrfclip::point_above_line {*}$point {*}$line] -1
     }
     {
         # Negative slope above - outside x coords
@@ -577,7 +580,7 @@ unitt::suite "point_above_line" {
         # Vertical line - left
         set point {-1 5}
         set line {0 0 0 10}
-        unitt::assert_eq [mrfclip::point_above_line {*}$point {*}$line] -1
+        unitt::assert_eq [mrfclip::point_above_line {*}$point {*}$line] 1
     }
     {
         # Vertical line - right
@@ -738,8 +741,6 @@ unitt::suite "S_point_compare" {
         set ${e4}::other $e3
 
         unitt::assert_eq [mrfclip::S_point_compare $e1 $e3] 1
-        # second assertion questionable?
-        unitt::assert_eq [mrfclip::S_point_compare $e3 $e1] -1
     }
     {
         # vertical line, on, diff x-coord

@@ -27,6 +27,12 @@ proc mrfclip::point_above_line {ax ay bx by cx cy} {
     # check if a point is above or below the speified line
     # the point could be a left or right endpoint
     #
+    # B and C MUST be pre-sorted:
+    #   Bx < Cx, elseif (Bx == Cx) By < Cy
+    #
+    # This sorting is already done elsewhere in the algorithm, so don't
+    # do it here
+    #
     # arguments:
     # point     the point (x,y coords) to test
     # line      the line (two points) to test against
@@ -36,21 +42,24 @@ proc mrfclip::point_above_line {ax ay bx by cx cy} {
     # 0  - on
     # -1 - below
 
-    # If the line is vertical
+    # cross product gives us parallelogram area
+    #   don't need actual triangle area, as positive/negative is sufficient
+    #   to determine above/below
+    #
+    # | (ax - bx) (ay - by) |
+    # | (cx - bx) (cy - by) |
+    # A x B = (ax - bx) * (cy - by) - (cx - bx) * (ay - by)
+    #       = ax*cy - ax*by - bx*cy + bx*by - cx*ay + cx*by + ay*bx - bx*by
+    #                                 X                               X
+    #       = ax*cy - ax*by - bx*cy - cx*ay + cx*by + ay*bx
+    #
+    # negate to get a "above" bc line
+    #
+    #      => -ax*cy + ax*by + bx*cy + cx*ay - cx*by - ay*bx
     variable epsilon
-    if {abs(1.0*$bx - $cx) < $epsilon} {
-        # On the line
-        if {abs(1.0*$ax - $bx) < $epsilon} { return 0 }
-        return -1
-    }
 
-    # caclulate m & b
-    set m [expr {1.0*($cy - $by) / ($cx - $bx)}]
-    set b [expr {$by - $m * $bx}]
-    set line_y [expr {$m * $ax + $b}]
-
-    return [expr {abs($ay - $line_y) < $epsilon ? 0 : \
-    $ay > $line_y ? 1 : -1}]
+    set c [expr { $cx*$ay - $bx*$ay + $ax*$by - $cx*$by - $ax*$cy + $bx*$cy}]
+    return [expr {abs($c) < $epsilon ? 0 : $c < -$epsilon ? -1 : 1}]
 }
 
 proc mrfclip::S_point_compare {a b} {
