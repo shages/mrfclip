@@ -1,10 +1,13 @@
 # Prefix of all clip test cases
 CLIP_TESTS=$(patsubst %.tcl,%,$(wildcard t*-*.tcl))
 
-all: units $(CLIP_TESTS)
+all: avlunits units $(CLIP_TESTS)
 png: $(patsubst %.ps,%.png,$(wildcard results/*/*.ps))
 
 # Unit tests for core procs
+avlunits:
+	./avlunits.tcl
+
 units:
 	./units.tcl
 
