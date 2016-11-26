@@ -14,21 +14,10 @@ Download and directly load into Tcl
   * **OR** - union
   * **NOT** - difference
   * **XOR** - (A NOT B) OR (B NOT A)
-- Supports all degenerate cases
-- Runs in O(n log n+k) time*, where n is the number of input points and k is
-  the number of intersections
-  * \*The last part of the algorithm is currently implemented in
-  O(n<sup>2</sup>) time. I plan to change the algorithm to work in O(log n)
-  time in the future.
-  * \*XOR currently runs in longer time
-- Partial support for holes
-
-### Known Issues
-- Polygons with self-overlapping edges are not supported
-- While holes are supported as input and output, there is no special handling
-when returning holes. Holes and their enclosing polygons are not associated,
-and may be returned in any order.
-
+- Supports degenerate cases
+- Supports holes[*](#known-issues)
+- Runs in O((_n_ + _k_) log _n_) time[*](#known-issues), where n is the
+number of input vertices and k is the number of intersections
 
 ## Examples
 - AND, OR, NOT, and XOR
@@ -37,17 +26,17 @@ and may be returned in any order.
 <img src="/doc/images/t02/r0_1.png" alt="A OR B" width="200" />
 <img src="/doc/images/t02/r0_4.png" alt="A NOT B" width="200" />
 <img src="/doc/images/t02/r0_3.png" alt="A XOR B" width="200" />
+
 - Self-intersecting (second image showing holes, though improperly drawn)
 
 <img src="/doc/images/t01/r0_2.png" alt="A AND B" width="200" />
 <img src="/doc/images/t01/r0_1.png" alt="A OR B" width="200" />
 <img src="/doc/images/t17/r0_2.png" alt="A AND B" width="200" />
+
 - Degenerate
 
 <img src="/doc/images/t15/r3_0.png" alt="A NOT B AND" width="200" />
 <img src="/doc/images/t15/r3_2.png" alt="A NOT B AND" width="200" />
-
-
 <img src="/doc/images/t12/r3_0.png" alt="A NOT B OR C" width="200" />
 <img src="/doc/images/t12/r3_1.png" alt="A NOT B OR C" width="200" />
 
@@ -109,6 +98,18 @@ The result will always be in unclosed form.
 Clipping may result in multiple polygons, in which case a list of polygons is
 returned. For this reason, the return value of `mrfclip::clip` is always a list
 of list(s) regardless of the actual result.
+
+## Known Issues
+- Polygons with self-overlapping edges are not supported
+- While holes are supported as input and output, there is no special
+handling
+when returning holes. Holes and their enclosing polygons are not associated,
+and may be returned in any order.
+- The last part of the algorithm is currently implemented in
+O(n<sup>2</sup>) time in the worst case. The worst case occurs when the
+result is a single or few long chain(s). I plan to change the algorithm to
+work in O(_n_ log _n_) time or better in the near future.
+- XOR currently runs in longer time
 
 ## Tests
 ```sh
