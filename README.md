@@ -17,13 +17,17 @@ Download and directly load into Tcl
 - Supports all degenerate cases
 - Runs in O(n log n+k) time*, where n is the number of input points and k is
   the number of intersections
-  * \*The last part of the algorithm is currently implemented in O(n<sup>2</sup>) time. I plan to change the algorithm to work in O(log n) time in the future.
+  * \*The last part of the algorithm is currently implemented in
+  O(n<sup>2</sup>) time. I plan to change the algorithm to work in O(log n)
+  time in the future.
   * \*XOR currently runs in longer time
 - Partial support for holes
 
 ### Known Issues
 - Polygons with self-overlapping edges are not supported
-- While holes are supported as input and output, there is no special handling when returning holes. Holes and their enclosing polygons are not associated, and may be returned in any order.
+- While holes are supported as input and output, there is no special handling
+when returning holes. Holes and their enclosing polygons are not associated,
+and may be returned in any order.
 
 
 ## Examples
@@ -81,7 +85,8 @@ mrfclip::clip $poly1 AND $poly2
 
 ```
 
-Polygons are clipped strictly left to right. Use command substitution as shown above to achieve the desired clipping.
+Polygons are clipped strictly left to right. Use command substitution as shown
+above to achieve the desired clipping.
 
 ### Polygon Format
 Polygons must be specified as a flat list of coordinates.
@@ -102,7 +107,8 @@ The result will always be in unclosed form.
 
 ### Multiple Polygons
 Clipping may result in multiple polygons, in which case a list of polygons is
-returned. For this reason, the return value of `mrfclip::clip` is always a list of list(s) regardless of the actual result.
+returned. For this reason, the return value of `mrfclip::clip` is always a list
+of list(s) regardless of the actual result.
 
 ## Tests
 ```sh
