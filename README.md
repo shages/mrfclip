@@ -20,6 +20,9 @@ Download and directly load into Tcl
 number of input vertices and k is the number of intersections
 
 ## Examples
+
+<img src="/doc/images/t19/r1_0.png" alt="A AND B" width="860" />
+
 - AND, OR, NOT, and XOR
 
 <img src="/doc/images/t02/r0_2.png" alt="A AND B" width="200" />
