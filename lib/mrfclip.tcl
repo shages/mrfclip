@@ -883,21 +883,22 @@ proc mrfclip::mrfclip {subject clipping operation} {
         if {[set ${event}::left]} {
             # left event
             # get position to insert into s
-            $S insert $event
-            set S_left [$S value_left_of $event]
-            set S_right [$S value_right_of $event]
+            set node [$S insert $event]
+            set prev [set [$S node_left_of $node]::value]
+            set next [set [$S node_right_of $node]::value]
 
             # Set flags
-            set_inside_flags $event $S_left
+            set_inside_flags $event $prev
 
             # Check for intersections
-            possible_inter $event $S_left
-            possible_inter $event $S_right
+            possible_inter $event $prev
+            possible_inter $event $next
         } else {
             # get position of corresponding point
             set other [set ${event}::other]
-            set prev [$S value_left_of $other]
-            set next [$S value_right_of $other]
+            set node [$S find $other]
+            set prev [set [$S node_left_of $node]::value]
+            set next [set [$S node_right_of $node]::value]
 
             # Check if corresponding left point is inside the other poly
             # or not
