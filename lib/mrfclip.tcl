@@ -937,7 +937,7 @@ proc mrfclip::mrfclip {subject clipping operation} {
                 }
             }
 
-            if {[set ${other}::edgetype] ne "NON_CONTRIBUTING"} {
+            if {[set ${other}::edgetype] eq "NULL"} {
                 lappend xor_psegs [list \
                     [set ${other}::point] \
                     [set ${event}::point] \
@@ -961,74 +961,13 @@ proc mrfclip::mrfclip {subject clipping operation} {
         "AND" { set polygons [::mrfclip::create_chains $intersection_psegs] }
         "OR"  { set polygons [::mrfclip::create_chains $union_psegs] }
         "NOT" { set polygons [::mrfclip::create_chains $diff_psegs] }
+        "XOR" { set polygons [::mrfclip::create_chains $xor_psegs] }
     }
     return $polygons
 
     # Cleanup
     namespace delete {*}[namespace children ::mrfclip::event]
     namespace delete {*}[namespace children ::mrfclip::point]
-}
-
-proc mrfclip::multi_clip {p1 p2 op} {
-    # handle multiple polygon list inputs and perform the specified operation
-    #
-    # args
-    # p1 - subject polylist
-    # p2 - clip polylist
-    # op - human readable operation (and|or|xor|not)
-
-    if {[llength [lindex $p1 0]] <= 1} {
-        set p1 [list $p1]
-    }
-    if {[llength [lindex $p2 0]] <= 1} {
-        set p2 [list $p2]
-    }
-
-    # convert inputs to lists of polies and then loop through all combinations
-    set polylist {}
-    if {$op eq "XOR"} {
-        # xor isn't distributive, so expand the function:
-        # p1 = p11 or p12 or ... or p1n
-        # p2 = p21 or p22 or ... or p2n
-        # p1 xor p2 =   p11 andnot p21 andnot p22 andnot ... andnot p2n
-        #            or p12 andnot p21 andnot p22 andnot ... andnot p2n
-        #            or ...
-        #            or p1n andnot p21 andnot p22 andnot ... andnot p2n
-        #            or p21 andnot p11 andnot p12 andnot ... andnot p1n
-        #            or p22 andnot p11 andnot p12 andnot ... andnot p1n
-        #            or ...
-        #            or p2n andnot p11 andnot p12 andnot ... andnot p1n
-        foreach poly $p1 {
-            set args [list $poly]
-            foreach arg $p2 {
-                lappend args NOT $arg
-            }
-            lappend polylist {*}[clip {*}$args]
-        }
-        foreach poly $p2 {
-            set args [list $poly]
-            foreach arg $p1 {
-                lappend args NOT $arg
-            }
-            lappend polylist {*}[clip {*}$args]
-        }
-        if {[llength $polylist] > 1} {
-            # OR all of them instead of returning list
-            # This is intentionally slower than ideal until ideal approach works
-            set exp \{[join $polylist "\} OR \{"]\}
-            return [mrfclip::clip {*}$exp]
-            # Preferred implementation:
-            #   Or first 0..N-1 polygons with the last polygon, letting the
-            #   clipping algorithm remove common edges
-            #   Currently causes errors (unable to delete element in S)
-            #set first [lrange $polylist 0 end-1]
-            #set last [lindex $polylist end]
-            #return [mrfclip::clip $first OR $last]
-        }
-    } else {
-        lappend polylist {*}[mrfclip $p1 $p2 $op]
-    }
-    return $polylist
 }
 
 proc mrfclip::clip {args} {
@@ -1051,14 +990,14 @@ proc mrfclip::clip {args} {
         if {[llength [lindex $p2 0]] == 1} {
             set p2 [list $p2]
         }
-        set r [multi_clip $p1 $p2 [lindex $args 1]]
+        set r [mrfclip $p1 $p2 [lindex $args 1]]
         return $r
     } else {
         set p2 [lindex $args end]
         if {[llength [lindex $p2 0]] == 1} {
             set p2 [list $p2]
         }
-        set r [multi_clip [clip {*}[lrange $args 0 end-2]] $p2 [lindex $args end-1]]
+        set r [mrfclip [clip {*}[lrange $args 0 end-2]] $p2 [lindex $args end-1]]
         return $r
     }
 }
