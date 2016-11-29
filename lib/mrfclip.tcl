@@ -2,6 +2,7 @@
 package require Tcl 8.5
 
 package require avltree
+package require heap
 package require mrfclip::point
 package require mrfclip::event
 package require mrfclip::chain
@@ -483,38 +484,32 @@ proc mrfclip::possible_inter {e1 e2} {
         } else {
             # need to cut one of them short
             if {[coords_equal [set [set ${left1}::point]::coord] $next_coord]} {
-                # Save the point and remove it from the queue
-                set old_right_point [set [set ${left2}::other]::point]
-                $queue delete [set ${left2}::other]
+                set common_point [set ${left1}::point]
 
-                # Update  endpoint
-                set [set ${left2}::other]::point [set ${left1}::point]
-                set common_point [set [set ${left2}::other]::point]
-
-                # Create new segment
+                set ner [::mrfclip::event init $common_point false [set ${left2}::polytype]]
                 set nel [::mrfclip::event init $common_point true [set ${left2}::polytype]]
-                set ner [::mrfclip::event init $old_right_point false [set ${left2}::polytype]]
-                $queue insert [set ${left2}::other]
+
+                set ${ner}::other $left2
+                set ${nel}::other [set ${left2}::other]
+                set [set ${left2}::other]::other $nel
+                set ${left2}::other $ner
                 set left2 $nel
+                $queue insert $nel
+                $queue insert $ner
             } else {
-                # Save the point and remove it from the queue
-                set old_right_point [set [set ${left1}::other]::point]
-                $queue delete [set ${left1}::other]
+                set common_point [set ${left2}::point]
 
-                # Update  endpoint
-                set [set ${left1}::other]::point [set ${left2}::point]
-                set common_point [set [set ${left1}::other]::point]
-
-                # Create new segment
+                set ner [::mrfclip::event init $common_point false [set ${left1}::polytype]]
                 set nel [::mrfclip::event init $common_point true [set ${left1}::polytype]]
-                set ner [::mrfclip::event init $old_right_point false [set ${left1}::polytype]]
-                $queue insert [set ${left1}::other]
+
+                set ${ner}::other $left1
+                set ${nel}::other [set ${left1}::other]
+                set [set ${left1}::other]::other $nel
+                set ${left1}::other $ner
                 set left1 $nel
+                $queue insert $nel
+                $queue insert $ner
             }
-            set ${nel}::other $ner
-            set ${ner}::other $nel
-            $queue insert $nel
-            $queue insert $ner
         }
         # At this point, left1 and left2 refer to the left events of the middle
         # segment. Can determine edgetype now.
@@ -538,36 +533,30 @@ proc mrfclip::possible_inter {e1 e2} {
             # If they're both equal, then skip
         } else {
             if {[coords_equal [set [set [set ${left1}::other]::point]::coord] $next_coord]} {
-                # Save the point and remove it from the queue
-                set old_right_point [set [set ${left2}::other]::point]
-                $queue delete [set ${left2}::other]
-
-                # Update  endpoint
-                set [set ${left2}::other]::point [set [set ${left1}::other]::point]
-                set common_point [set [set ${left2}::other]::point]
-
-                # Create new segment
-                set nel [::mrfclip::event init $common_point true [set ${left2}::polytype]]
-                set ner [::mrfclip::event init $old_right_point false [set ${left2}::polytype]]
-                $queue insert [set ${left2}::other]
-            } else {
-                # Save the point and remove it from the queue
-                set old_right_point [set [set ${left1}::other]::point]
-                $queue delete [set ${left1}::other]
-
-                # Update  endpoint
-                set [set ${left1}::other]::point [set [set ${left2}::other]::point]
                 set common_point [set [set ${left1}::other]::point]
 
-                # Create new segment
+                set ner [::mrfclip::event init $common_point false [set ${left2}::polytype]]
+                set nel [::mrfclip::event init $common_point true [set ${left2}::polytype]]
+
+                set ${ner}::other $left2
+                set ${nel}::other [set ${left2}::other]
+                set [set ${left2}::other]::other $nel
+                set ${left2}::other $ner
+                $queue insert $nel
+                $queue insert $ner
+            } else {
+                set common_point [set [set ${left2}::other]::point]
+
+                set ner [::mrfclip::event init $common_point false [set ${left1}::polytype]]
                 set nel [::mrfclip::event init $common_point true [set ${left1}::polytype]]
-                set ner [::mrfclip::event init $old_right_point false [set ${left1}::polytype]]
-                $queue insert [set ${left1}::other]
+
+                set ${ner}::other $left1
+                set ${nel}::other [set ${left1}::other]
+                set [set ${left1}::other]::other $nel
+                set ${left1}::other $ner
+                $queue insert $nel
+                $queue insert $ner
             }
-            set ${nel}::other $ner
-            set ${ner}::other $nel
-            $queue insert $nel
-            $queue insert $ner
         }
         return
     }
@@ -707,7 +696,6 @@ proc mrfclip::create_chains {segs} {
         # If both points already exist, then connect the chains without
         # creating any new chain objects
         if {[dict exists $C $sl] && [dict exists $C $sr]} {
-            #puts "DEBUG: Both SL and SR found"
             set slC [dict get $C $sl]
             set srC [dict get $C $sr]
             dict unset C $sl
@@ -830,7 +818,8 @@ proc mrfclip::mrfclip {subject clipping operation} {
 
     #set queue {}
     # create an AVL tree
-    set queue [::avltree::create]
+    set queue [::heap::create]
+    set ${queue}::priority_value_separate 0
     # Bind compare proc
     proc ${queue}::compare {a b} {
         return [::mrfclip::compare_events $a $b]
@@ -844,7 +833,7 @@ proc mrfclip::mrfclip {subject clipping operation} {
     foreach clip $clipping {
         create_poly $clip CLIPPING
     }
-    merge_common_poly_points
+    #merge_common_poly_points
 
     set S [::avltree::create]
     proc ${S}::compare {a b} {
@@ -868,9 +857,13 @@ proc mrfclip::mrfclip {subject clipping operation} {
 
     # step 2: loop through priority queue while there are still events
     set iter [expr {[llength $subject] * 2}]
-    set prev ""
-    while {[set event [$queue pop_leftmost]] ne "NULL"} {
-        if {$event eq $prev} {
+    set previous_event ""
+    while {[set event [$queue pop]] ne ""} {
+        # merge points ?
+        if {$previous_event ne "" && [coords_equal [set [set ${event}::point]::coord] [set [set ${previous_event}::point]::coord]]} {
+            set ${event}::point [set ${previous_event}::point]
+        }
+        if {$event eq $previous_event} {
             puts "FATAL: Infinite loop detected"
             puts "DEBUG: event line:
             ([lindex [set [set ${event}::point]::coord] 0], [lindex [set [set ${event}::point]::coord] 1])
@@ -878,7 +871,6 @@ proc mrfclip::mrfclip {subject clipping operation} {
             "
             error "infinite loop"
         }
-        set prev $event
 
         if {[set ${event}::left]} {
             # left event
@@ -960,6 +952,7 @@ proc mrfclip::mrfclip {subject clipping operation} {
             # Check for intersections of new neighbors
             possible_inter $prev $next
         }
+        set previous_event $event
     }
 
     # Create and connect chains of segments into polygons
