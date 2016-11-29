@@ -96,7 +96,7 @@ proc heap::create {} {
                 set i $k
                 set j [expr {$i * 2}]
             }
-            set data [lreplace $data end end]
+            set data [lreplace $data[set data {}] end end]
             return $r
         }
 
