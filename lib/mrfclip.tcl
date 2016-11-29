@@ -696,7 +696,6 @@ proc mrfclip::create_chains {segs} {
         # If both points already exist, then connect the chains without
         # creating any new chain objects
         if {[dict exists $C $sl] && [dict exists $C $sr]} {
-            #puts "DEBUG: Both SL and SR found"
             set slC [dict get $C $sl]
             set srC [dict get $C $sr]
             dict unset C $sl
@@ -864,13 +863,6 @@ proc mrfclip::mrfclip {subject clipping operation} {
         if {$previous_event ne "" && [coords_equal [set [set ${event}::point]::coord] [set [set ${previous_event}::point]::coord]]} {
             set ${event}::point [set ${previous_event}::point]
         }
-#        puts "DEBUG: ======= loop ========"
-#        puts "DEBUG: event: $event"
-#        puts "DEBUG: point: [set ${event}::point]"
-#        puts "DEBUG: coord: [set [set ${event}::point]::coord]"
-#        puts "DEBUG: other event: [set ${event}::other]"
-#        puts "DEBUG: point: [set [set ${event}::other]::point]"
-#        puts "DEBUG: coord: [set [set [set ${event}::other]::point]::coord]"
         if {$event eq $previous_event} {
             puts "FATAL: Infinite loop detected"
             puts "DEBUG: event line:
