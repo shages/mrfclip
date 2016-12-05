@@ -51,13 +51,11 @@ close $fclip
 
 set wh {860 460}
 # Clip it
-puts "DEBUG: Drawing original polygons"
-_clip_test 0 0 {}       [list $poly1 $poly2] $rdir $wh
 puts "DEBUG: Drawing OR polygons"
-_clip_test 0 1 {OR}     [list $poly1 $poly2] $rdir $wh
+_clip_test 0 0 {OR}     [list $poly1 $poly2] $rdir $wh
 puts "DEBUG: Drawing AND polygons"
-_clip_test 1 0 {AND}    [list $poly1 $poly2] $rdir $wh
+_clip_test 0 1 {AND}    [list $poly1 $poly2] $rdir $wh
 puts "DEBUG: Drawing NOT polygons"
-_clip_test 1 1 {NOT}    [list $poly1 $poly2] $rdir $wh
-#puts "DEBUG: Drawing XOR polygons"
-#_clip_test 2 0 {XOR}    [list $poly1 $poly2] $rdir $wh
+_clip_test 1 0 {NOT}    [list $poly1 $poly2] $rdir $wh
+puts "DEBUG: Drawing XOR polygons"
+_clip_test 1 1 {XOR}    [list $poly1 $poly2] $rdir $wh
