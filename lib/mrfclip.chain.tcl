@@ -1,5 +1,5 @@
 
-package provide mrfclip::chain 1.0
+package provide mrfclip::chain 1.1
 
 namespace eval mrfclip {
     namespace eval chain {

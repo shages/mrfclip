@@ -6,7 +6,7 @@ package require heap
 package require mrfclip::point
 package require mrfclip::event
 package require mrfclip::chain
-package provide mrfclip 1.0
+package provide mrfclip 1.1
 
 namespace eval mrfclip {
     namespace export mrfclip

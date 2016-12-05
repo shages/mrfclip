@@ -99,20 +99,19 @@ The result will always be in unclosed form.
 
 ### Multiple Polygons
 Clipping may result in multiple polygons, in which case a list of polygons is
-returned. For this reason, the return value of `mrfclip::clip` is always a list
-of list(s) regardless of the actual result.
+returned (a _multi-polygon_). For this reason, the return value of
+`mrfclip::clip` is always a list of list(s) regardless of the actual result,
+and multi-polygons can also be used directly as input to `mrfclip::clip`
 
 ## Known Issues
 - Polygons with self-overlapping edges are not supported
 - While holes are supported as input and output, there is no special
-handling
-when returning holes. Holes and their enclosing polygons are not associated,
-and may be returned in any order.
+handling when returning holes. Holes and their enclosing polygons are not
+associated, and may be returned in any order.
 - The last part of the algorithm is currently implemented in
 O(n<sup>2</sup>) time in the worst case. The worst case occurs when the
 result is a single or few long chain(s). I plan to change the algorithm to
 work in O(_n_ log _n_) time or better in the near future.
-- XOR currently runs in longer time
 
 ## Tests
 ```sh
