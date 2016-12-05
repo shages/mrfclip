@@ -17,10 +17,10 @@ t%:
 
 # Convert postscript to png with ghostscript
 results/t19-worldmap-50/%.png: results/t19-worldmap-50/%.ps
-	gs -dSAFER -sDEVICE=png16m -dGraphicsAlphaBits=1 -dFitPage -g860x460 -o $@ $^
+	gs -dSAFER -sDEVICE=png16m -dTextAlphaBits=4 -dGraphicsAlphaBits=1 -dFitPage -g860x460 -o $@ $^
 
 %.png: %.ps
-	gs -dSAFER -sDEVICE=png16m -dGraphicsAlphaBits=4 -dFitPage -g200x200 -o $@ $^
+	gs -dSAFER -sDEVICE=png16m -dTextAlphaBits=4 -dGraphicsAlphaBits=4 -dFitPage -g200x200 -o $@ $^
 
 clean_png:
 	$(RM) results/*/*.png

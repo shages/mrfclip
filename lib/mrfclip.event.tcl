@@ -1,5 +1,5 @@
 
-package provide mrfclip::event 1.0
+package provide mrfclip::event 1.1
 
 namespace eval mrfclip {
     namespace eval event {
@@ -11,9 +11,10 @@ namespace eval mrfclip {
 }
 
 proc mrfclip::event::is_vertical {event} {
+    upvar ::mrfclip::epsilon epsilon
     set p1 [set [set ${event}::point]::coord]
     set p2 [set [set [set ${event}::other]::point]::coord]
-    return [expr {[lindex $p1 0] == [lindex $p2 0] ? 1 : 0}]
+    return [expr {abs([lindex $p1 0] - [lindex $p2 0]) < $epsilon ? 1 : 0}]
 }
 
 proc mrfclip::event::init {args} {

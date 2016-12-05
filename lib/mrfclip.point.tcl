@@ -1,5 +1,5 @@
 
-package provide mrfclip::point 1.0
+package provide mrfclip::point 1.1
 
 namespace eval mrfclip {
     namespace eval point {
