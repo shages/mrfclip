@@ -43,7 +43,7 @@ proc mrfclip::point_above_line {ax ay bx by cx cy} {
     # 0  - on
     # -1 - below
 
-    # cross product gives us parallelogram area
+    # cross product gives us signed parallelogram area
     #   don't need actual triangle area, as positive/negative is sufficient
     #   to determine above/below
     #
@@ -254,26 +254,6 @@ proc mrfclip::create_poly {poly polytype} {
     # Return the events (only for testing)
     return $events
 }
-
-proc mrfclip::merge_common_poly_points {} {
-    # Ensure all events with common coordinates use the same Point object
-    variable queue
-
-    # Merge common points
-    set node [$queue leftmost_node]
-    while {[set next [$queue node_right_of $node]] ne "::avltree::node::NIL"} {
-        # Check if the next event's point is different, and if so fix it
-        if {[set [set ${next}::value]::point] ne [set [set ${node}::value]::point]} {
-            set this_coord [set [set [set ${node}::value]::point]::coord]
-            set next_coord [set [set [set ${next}::value]::point]::coord]
-            if {[coords_equal $this_coord $next_coord]} {
-                set [set ${next}::value]::point [set [set ${node}::value]::point]
-            }
-        }
-        set node $next
-    }
-}
-
 
 proc mrfclip::set_inside_flags {curr_event prev_event} {
     # set the inside flags for this event in s
@@ -816,8 +796,7 @@ proc mrfclip::mrfclip {subject clipping operation} {
         }
     }
 
-    #set queue {}
-    # create an AVL tree
+    # Create priority queue
     set queue [::heap::create]
     set ${queue}::priority_value_separate 0
     # Bind compare proc
@@ -825,7 +804,7 @@ proc mrfclip::mrfclip {subject clipping operation} {
         return [::mrfclip::compare_events $a $b]
     }
 
-    # step 1: create polygons and populate the priority queue
+    # Create polygons and populate the priority queue
     # inputs "subject" and "clipping" should be multi-polygons
     foreach sub $subject {
         create_poly $sub SUBJECT
@@ -833,8 +812,8 @@ proc mrfclip::mrfclip {subject clipping operation} {
     foreach clip $clipping {
         create_poly $clip CLIPPING
     }
-    #merge_common_poly_points
 
+    # Initialize Sweep line AVL BST and bind compare proc
     set S [::avltree::create]
     proc ${S}::compare {a b} {
         set epsilon 0.00000000001
@@ -847,22 +826,25 @@ proc mrfclip::mrfclip {subject clipping operation} {
         }
         return [::mrfclip::S_point_compare $a $b]
     }
-    set intersection_segs {}
-    set union_segs {}
-    set diff_segs {}
+
+    # Lists containing resulting segments with Point objects
     set intersection_psegs {}
     set union_psegs {}
     set diff_psegs {}
     set xor_psegs {}
 
-    # step 2: loop through priority queue while there are still events
-    set iter [expr {[llength $subject] * 2}]
+    # Sweep through events
     set previous_event ""
     while {[set event [$queue pop]] ne ""} {
-        # merge points ?
+        # Merge common points, which will always be adjacent in priority queue
+        # Points must be common for chain connection later to lookup by
+        # dictionary
         if {$previous_event ne "" && [coords_equal [set [set ${event}::point]::coord] [set [set ${previous_event}::point]::coord]]} {
             set ${event}::point [set ${previous_event}::point]
         }
+
+        # Detect an infinite loop and break early
+        # This happens if deleting from AVL tree fails
         if {$event eq $previous_event} {
             puts "FATAL: Infinite loop detected"
             puts "DEBUG: event line:
@@ -874,77 +856,58 @@ proc mrfclip::mrfclip {subject clipping operation} {
 
         if {[set ${event}::left]} {
             # left event
-            # get position to insert into s
+            # Insert into S
             set node [$S insert $event]
+
+            # Get adjacent nodes to check for intersection
             set prev [set [$S node_left_of $node]::value]
             set next [set [$S node_right_of $node]::value]
 
-            # Set flags
+            # Set flags for the event
             set_inside_flags $event $prev
 
             # Check for intersections
             possible_inter $event $prev
             possible_inter $event $next
         } else {
-            # get position of corresponding point
+            # right event
+            # Get the corresponding left event in S
             set other [set ${event}::other]
+
+            # Get adjacent events to check for intersection after this event
+            # is removed
             set node [$S find $other]
             set prev [set [$S node_left_of $node]::value]
             set next [set [$S node_right_of $node]::value]
 
-            # Check if corresponding left point is inside the other poly
-            # or not
+            # Capture this segment for the appropriate operations
+            set segment [list [set ${other}::point] [set ${event}::point]]
             if {[set ${other}::edgetype] eq "SAME_TRANSITION"} {
-                # Add to both intersection and union
-                lappend intersection_psegs [list \
-                    [set ${other}::point] \
-                    [set ${event}::point] \
-                ]
-                lappend union_psegs [list \
-                    [set ${other}::point] \
-                    [set ${event}::point] \
-                ]
+                lappend intersection_psegs $segment
+                lappend union_psegs $segment
             } elseif {[set ${other}::edgetype] eq "DIFFERENT_TRANSITION"} {
-                lappend diff_psegs [list \
-                    [set ${other}::point] \
-                    [set ${event}::point] \
-                ]
+                lappend diff_psegs $segment
             } elseif {[set ${other}::edgetype] eq "NON_CONTRIBUTING"} {
-
             } else {
                 if {[set ${other}::inside]} {
                     if {[set ${other}::polytype] eq "CLIPPING"} {
-                        lappend diff_psegs [list \
-                            [set ${other}::point] \
-                            [set ${event}::point] \
-                        ]
+                        lappend diff_psegs $segment
                     }
-                    lappend intersection_psegs [list \
-                        [set ${other}::point] \
-                        [set ${event}::point] \
-                    ]
+                    lappend intersection_psegs $segment
                 } else {
                     if {[set ${other}::polytype] eq "SUBJECT"} {
-                        lappend diff_psegs [list \
-                            [set ${other}::point] \
-                            [set ${event}::point] \
-                        ]
+                        lappend diff_psegs $segment
                     }
-                    lappend union_psegs [list \
-                        [set ${other}::point] \
-                        [set ${event}::point] \
-                    ]
+                    lappend union_psegs $segment
                 }
             }
 
+            # Capture all non-overlapping segments for XOR
             if {[set ${other}::edgetype] eq "NULL"} {
-                lappend xor_psegs [list \
-                    [set ${other}::point] \
-                    [set ${event}::point] \
-                ]
+                lappend xor_psegs $segment
             }
 
-            # Remove from S
+            # Remove event from S
             if {[$S delete $other] == 0} {
                 puts "ERROR: Couldn't delete: $other. Result will likely be wrong."
                 puts "  coord = [set [set ${other}::point]::coord]"
@@ -971,34 +934,52 @@ proc mrfclip::mrfclip {subject clipping operation} {
     return $polygons
 }
 
+proc mrfclip::convert_poly_to_multi_poly {poly} {
+    # Convert polygon to a multi-polygon
+    #
+    # Arguments:
+    # poly      Polygon or multi-polygon
+    #
+    # If a multi-polygon is provided, it won't be changed
+    if {[llength [lindex $poly 0]] == 1} {
+        return [list $poly]
+    }
+    return $poly
+}
+
+proc ::mrfclip::show_help {} {
+    # Return help string
+    return "
+    ::mrfclip::clip - Clip polygons from an expression
+
+    Usage:
+      ::mrfclip::clip \$poly1 op \$poly2 \[.. op \$polyN\]
+
+    where 'op' is one of the following clipping operations:
+    AND, OR, NOT, XOR
+
+    Example:
+      ::mrfclip::clip \$poly1 OR \$poly2 AND \$poly3
+    "
+}
+
 proc mrfclip::clip {args} {
     # parse and execute poly clipping expression
     #
-    # args
-    # args - clipping expression to be parsed
+    # Arguments:
+    # args      clipping expression to be parsed
     if {([llength $args] - 1) % 2 != 0} {
-        error "argument list is of wrong length"
+        puts "ERROR: Argument list is of wrong length
+        [show_help]"
+        return
     }
 
-    # convert inputs to lists of polies and then loop through all combinations
-
     if {[llength $args] == 3} {
-        set p1 [lindex $args 0]
-        set p2 [lindex $args 2]
-        if {[llength [lindex $p1 0]] == 1} {
-            set p1 [list $p1]
-        }
-        if {[llength [lindex $p2 0]] == 1} {
-            set p2 [list $p2]
-        }
-        set r [mrfclip $p1 $p2 [lindex $args 1]]
-        return $r
+        set p1 [convert_poly_to_multi_poly [lindex $args 0]]
+        set p2 [convert_poly_to_multi_poly [lindex $args 2]]
+        return [mrfclip $p1 $p2 [lindex $args 1]]
     } else {
-        set p2 [lindex $args end]
-        if {[llength [lindex $p2 0]] == 1} {
-            set p2 [list $p2]
-        }
-        set r [mrfclip [clip {*}[lrange $args 0 end-2]] $p2 [lindex $args end-1]]
-        return $r
+        set p2 [convert_poly_to_multi_poly [lindex $args end]]
+        return [mrfclip [clip {*}[lrange $args 0 end-2]] $p2 [lindex $args end-1]]
     }
 }
