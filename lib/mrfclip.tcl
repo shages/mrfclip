@@ -963,11 +963,12 @@ proc mrfclip::mrfclip {subject clipping operation} {
         "NOT" { set polygons [::mrfclip::create_chains $diff_psegs] }
         "XOR" { set polygons [::mrfclip::create_chains $xor_psegs] }
     }
-    return $polygons
 
     # Cleanup
     namespace delete {*}[namespace children ::mrfclip::event]
     namespace delete {*}[namespace children ::mrfclip::point]
+
+    return $polygons
 }
 
 proc mrfclip::clip {args} {
