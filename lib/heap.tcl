@@ -67,9 +67,16 @@ proc heap::create {} {
             # Remove the value from the top of the heap and return it
             #
             # Arguments: None
+            #
+            # Return empty string if heap is empty
             variable priority_value_separate
             variable data
             variable len
+
+            # Return early if heap is empty
+            if {$len == 0} {
+                return ""
+            }
 
             # Move the last leaf element to the top
             set r [lindex $data 1]
