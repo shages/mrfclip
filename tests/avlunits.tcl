@@ -163,3 +163,4 @@ unitt suite "getpop_leftrightmost" {
 }
 
 unitt summarize
+unitt exit
