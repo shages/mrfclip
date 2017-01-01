@@ -1,4 +1,6 @@
 # mrfclip
+[![Build Status](https://api.travis-ci.org/shages/mrfclip.svg?branch=develop)](https://travis-ci.org/shages/mrfclip)
+
 A Tcl implementation of the Martinez et al polygon clipping algorithm:
 http://www.cs.ucr.edu/~vbz/cs230papers/martinez_boolean.pdf
 
