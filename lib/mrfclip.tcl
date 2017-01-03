@@ -914,7 +914,7 @@ proc mrfclip::mrfclip {subject clipping operation} {
             }
 
             # Remove event from S
-            if {[$S delete $other] == 0} {
+            if {[$S delete_node $node] == 0} {
                 puts "ERROR: Couldn't delete: $other. Result will likely be wrong."
                 puts "  coord = [set [set ${other}::point]::coord]"
             }
