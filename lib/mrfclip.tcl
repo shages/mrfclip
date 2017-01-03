@@ -928,8 +928,11 @@ proc mrfclip::mrfclip {subject clipping operation} {
     }
 
     # Cleanup
+    $queue destroy
+    $S destroy
     namespace delete {*}[namespace children ::mrfclip::event]
     namespace delete {*}[namespace children ::mrfclip::point]
+    namespace delete {*}[namespace children ::mrfclip::chain]
 
     return $polygons
 }
