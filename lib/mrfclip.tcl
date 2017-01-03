@@ -835,6 +835,11 @@ proc mrfclip::mrfclip {subject clipping operation} {
 
     # Sweep through events
     set previous_event ""
+
+    # Cache AVL tree node index on insertion so it can be re-used
+    # later
+    # Cache is indexed by event name
+    set node_cache [dict create]
     while {[set event [$queue pop]] ne ""} {
         # Merge common points, which will always be adjacent in priority queue
         # Points must be common for chain connection later to lookup by
@@ -858,6 +863,7 @@ proc mrfclip::mrfclip {subject clipping operation} {
             # left event
             # Insert into S
             set node [$S insert $event]
+            dict set node_cache $event $node
 
             # Get adjacent nodes to check for intersection
             set prev [$S value_left_of_node $node]
@@ -876,7 +882,7 @@ proc mrfclip::mrfclip {subject clipping operation} {
 
             # Get adjacent events to check for intersection after this event
             # is removed
-            set node [$S find $other]
+            set node [dict get $node_cache $other]
             set prev [$S value_left_of_node $node]
             set next [$S value_right_of_node $node]
 
