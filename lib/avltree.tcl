@@ -15,24 +15,20 @@ namespace eval avltree {
         variable counter
         set tname "::avltree::T[incr counter]"
         namespace eval $tname {
-            # core functions
+            # Core functions
             namespace export destroy
             namespace export compare
             namespace export insert
             namespace export delete
+            namespace export delete_node
             namespace export find
 
-            # additional functionality
+            # Goodies - additional functionality
+            namespace export value_of_node
             namespace export rightmost_node
             namespace export leftmost_node
             namespace export rightmost_value
             namespace export leftmost_value
-
-            namespace export pop_leftmost
-            #namespace export pop_rightmost
-            #namespace export pop_to_list
-
-            #namespace export to_list
 
             namespace export node_left_of_node
             namespace export node_right_of_node
@@ -41,7 +37,12 @@ namespace eval avltree {
             namespace export value_left_of_value
             namespace export value_right_of_value
 
-            # utility
+            namespace export pop_leftmost_value
+            namespace export pop_rightmost_value
+            namespace export pop_to_list
+            namespace export to_list
+
+            # Utility
             namespace export draw
             namespace export get_tree_strings
 
@@ -563,6 +564,228 @@ namespace eval avltree {
                 return 1
             }
 
+            proc delete_node {node} {
+                # Delete a node from the tree
+                #
+                # Bypasses compares. Must know the node index beforehand.
+                #
+                # Argumets:
+                # value         The value to delete
+                #
+                # Returns:
+                # 1             Value was deleted
+                # 0             Value was not found
+                variable root
+                variable free_nodes
+                variable nodes
+
+                # Check node input for valid bounds
+                if {$node == 0 || $node >= [llength $nodes]} {
+                    return 0
+                }
+
+                # Also check if the node value is not NULL
+                if {[lindex $nodes $node 0] eq "NULL"} {
+                    return 0
+                }
+
+                # Create dir_stack
+                set dir_stack [list]
+                set prev $node
+                set parent [lindex $nodes $node 2]
+                while {$parent != "root"} {
+                    if {[lindex $nodes $parent 3] == $prev} {
+                        set dir 3
+                    } else {
+                        set dir 4
+                    }
+                    set dir_stack [linsert $dir_stack 0 $dir]
+
+                    # go to parent
+                    set prev $parent
+                    set parent [lindex $nodes $parent 2]
+                }
+
+                # Remove the node (n_del) with two methods:
+                # 1. If one of the children of n_del is NIL, then we simply
+                #    need to connect its other child to the parent of n_del
+                # 2. If n_del has two real children, find its inorder
+                #    successor, swap the values, and reconnect the successor's
+                #    child(ren) to its parent
+                set node_data [lindex $nodes $node]
+                if {[lindex $node_data 3] == 0 || [lindex $node_data 4] == 0} {
+                    set dir [expr {[lindex $node_data 3] == 0 ? 4 : 3}]
+
+                    if {[lindex $node_data 2] == "root"} {
+                        # Deleting the root node, so reconnect the tree root
+                        # pointer
+                        set root [lindex $node_data $dir]
+
+                        # update child pointer, but only if not null
+                        if {$root != 0} {
+                            set child_data [lindex $nodes $root]
+                            lset child_data 2 "root"
+                            lset nodes $root $child_data
+                        }
+                    } else {
+                        set parent [lindex $node_data 2]
+                        set parent_data [lindex $nodes $parent]
+                        set child [lindex $node_data $dir]
+                        set child_data [lindex $nodes $child]
+                        lset parent_data [lindex $dir_stack end] \
+                                         $child
+                        lset nodes $parent $parent_data
+                        if {$child != 0} {
+                            lset child_data 2 $parent
+                            lset nodes $child $child_data
+                        }
+                    }
+                } else {
+                    # get first right child
+                    set successor [lindex $node_data 4]
+                    # keep tracking directions
+                    lappend dir_stack 4
+
+                    # now go left until we hit NULL
+                    set successor_data [lindex $nodes $successor]
+                    while {[lindex $successor_data 3] != 0} {
+                        lappend dir_stack 3
+                        set successor [lindex $successor_data 3]
+                        set successor_data [lindex $nodes $successor]
+                    }
+
+                    # swap the data
+                    # NOTE: Take care to not simply swap the data, but rather
+                    # to preserve the node pointers so that a user can cache
+                    # the node pointer on insertion, and then refer to it
+                    # directly at a later time after deletions have occurred
+                    # This means we must re-stitch the tree carefully
+
+                    # Reconnect children of $node to $successor
+                    set node_cl [lindex $node_data 3]
+                    set node_cr [lindex $node_data 4]
+                    if {$node_cl != 0} {
+                        set node_cl_data [lindex $nodes $node_cl]
+                        lset node_cl_data 2 $successor
+                        lset nodes $node_cl $node_cl_data
+                    }
+                    if {$node_cr != 0} {
+                        set node_cr_data [lindex $nodes $node_cr]
+                        lset node_cr_data 2 $successor
+                        lset nodes $node_cr $node_cr_data
+                    }
+
+                    # store successor's original parent before we modify it
+                    set successor_parent [lindex $successor_data 2]
+                    set successor_parent_data [lindex $nodes $successor_parent]
+
+                    # Connect inorder successor parent value
+                    # This fixes possible modification from previous statements
+                    # if the immediate right child of $node is the inorder
+                    # successor
+                    set successor_data [lindex $nodes $successor]
+                    lset successor_data 2 [lindex $node_data 2]
+                    lset nodes $successor $successor_data
+
+                    # Reconnect successor's right child to its parent
+                    set successor_child [lindex $successor_data 4]
+                    set successor_child_data [lindex $nodes $successor_child]
+                    # update child's parent pointer
+                    if {$successor_child != 0} {
+                        # only if it's not null
+                        if {$successor_parent == $node} {
+                            # successor is the "new" parent
+                            lset successor_child_data 2 $successor
+                            lset nodes $successor_child $successor_child_data
+                        } else {
+                            lset successor_child_data 2 $successor_parent
+                            lset nodes $successor_child $successor_child_data
+                        }
+                    }
+                    # update parent's child pointer
+                    if {$successor_parent == $node} {
+                        # sucessor is the "new" parent
+                        lset successor_data 3 [lindex $node_data 3]
+                        lset successor_data 4 $successor_child
+                        lset nodes $successor $successor_data
+                    } else {
+                        lset successor_parent_data 3 $successor_child
+                        lset nodes $successor_parent $successor_parent_data
+                        lset successor_data 3 [lindex $node_data 3]
+                        lset successor_data 4 [lindex $node_data 4]
+                        lset nodes $successor $successor_data
+                    }
+                    # update node's parent's child pointer
+                    set parent [lindex $node_data 2]
+                    if {$parent eq "root"} {
+                        set root $successor
+                    } else {
+                        set parent_data [lindex $nodes $parent]
+                        if {[lindex $parent_data 3] == $node} {
+                            lset parent_data 3 $successor
+                        } else {
+                            lset parent_data 4 $successor
+                        }
+                        lset nodes $parent $parent_data
+                    }
+
+                    # Copy (initial) balance factor from node
+                    set successor_data [lindex $nodes $successor]
+                    lset successor_data 1 [lindex $node_data 1]
+                    lset nodes $successor $successor_data
+                }
+
+                # free the node
+                lset nodes $node [lindex $nodes 0]
+                lappend free_nodes $node
+
+                # walk back up the tree
+                if {[info exists successor_parent]} {
+                    if {$successor_parent == $node} {
+                        # start at the successor, since it was a direct
+                        # child of $node
+                        set node $successor
+                    } else {
+                        # start at successor's parent if it exists
+                        set node $successor_parent
+                    }
+                } else {
+                    # otherwise use node's parent
+                    set node $parent
+                }
+                set done 0
+                while {$node ne "root" && !$done} {
+                    set node_data [lindex $nodes $node]
+                    set bf [lindex $node_data 1]
+                    # Based on the direction we came from, update balance
+                    # factor
+                    set dir [lindex $dir_stack end]
+                    set dir_stack [lreplace \
+                        $dir_stack[set dir_stack {}] end end]
+                    if {$dir == 3} {
+                        # left
+                        set bf [expr {$bf + 1}]
+                    } else {
+                        set bf [expr {$bf - 1}]
+                    }
+                    lset node_data 1 $bf
+                    lset nodes $node $node_data
+
+                    # capture parent index before any tree modification in
+                    # case it is re-balanced and changes
+                    set parent [lindex $node_data 2]
+
+                    if {abs($bf) == 1} {
+                        break
+                    } elseif {abs($bf) > 1} {
+                        set done [remove_adjust_balance $node $dir]
+                    }
+
+                    set node $parent
+                }
+                return 1
+            }
+
             proc find {value} {
                 # Find the value in the tree and return its index
                 #
@@ -601,6 +824,25 @@ namespace eval avltree {
             ##    ##  ##     ## ##     ## ##     ##  ##  ##             ##
             ##    ##  ##     ## ##     ## ##     ##  ##  ##       ##    ##
              ######    #######   #######  ########  #### ########  ######
+
+            proc value_of_node {node} {
+                # Return the value of a specified node
+                #
+                # Arguments:
+                # node          The node to get the value for
+                #
+                # Returns:
+                # value         The value of the node
+                # "NULL"        If the node doesn't exist
+                variable nodes
+
+                # Check if node exists
+                if {$node >= [llength $nodes] || $node <= 0} {
+                    return "NULL"
+                }
+
+                return [lindex $nodes $node 0]
+            }
 
             proc xmost_node {node dir} {
                 # Return the X-most node in this sub-tree, where X is "left" or
@@ -795,7 +1037,7 @@ namespace eval avltree {
                 return [value_right_of_node [find $value]]
             }
 
-            proc pop_leftmost {} {
+            proc pop_leftmost_value {} {
                 # Pop the leftmost node in the tree off the tree and return its
                 # value
                 #
@@ -807,6 +1049,89 @@ namespace eval avltree {
                 set value [leftmost_value]
                 delete $value
                 return $value
+            }
+
+            proc pop_rightmost_value {} {
+                # Pop the rightmost node in the tree off the tree and return its
+                # value
+                #
+                # Arguments: none
+                #
+                # Returns:
+                # value         Value of the rightmost node
+                # "NULL"        If no nodes exist in the tree
+                set value [rightmost_value]
+                delete $value
+                return $value
+            }
+
+            proc pop_to_list {{sort_method ascending}} {
+                # Pop all nodes in the tree and return their values in a list
+                #
+                # Can be ordered in ascending or descending order
+                #
+                # Arguments:
+                # sort_method   'ascending' | 'descending' - order of the
+                #               returned list
+                #
+                # Returns:
+                # values        List of values from the tree
+                # "NULL"        If no nodes exist in the tree
+                set values [list]
+
+                if {$sort_method eq "ascending"} {
+                    set cmd "pop_leftmost_value"
+                } elseif {$sort_method eq "descending"} {
+                    set cmd "pop_rightmost_value"
+                } else {
+                    error "\[pop_to_list\] sort_method '$sort_method' not supported"
+                }
+
+                while {[set value [$cmd]] != "NULL"} {
+                    lappend values $value
+                }
+
+                if {$values eq ""} {
+                    return "NULL"
+                } else {
+                    return $values
+                }
+            }
+
+            proc to_list {{sort_method ascending}} {
+                # Return all values in the tree sorted by $sort_method
+                #
+                # Arguments:
+                # sort_method   'ascending' | 'descending' - order of the
+                #               returned list
+                #
+                # Returns:
+                # values        List of values from the tree
+                # "NULL"        If no nodes exist in the tree
+                set values [list]
+
+                if {$sort_method eq "ascending"} {
+                    set start_cmd "leftmost_node"
+                    set next_cmd "node_right_of_node"
+                } elseif {$sort_method eq "descending"} {
+                    set start_cmd "rightmost_node"
+                    set next_cmd "node_left_of_node"
+                } else {
+                    error "\[to_list\] sort_method '$sort_method' not supported"
+                }
+
+                set node [$start_cmd]
+                if {$node eq "NULL"} {
+                    return "NULL"
+                } else {
+                    lappend values [value_of_node $node]
+                }
+
+                while {[set node [$next_cmd $node]] != 0} {
+                    lappend values [value_of_node $node]
+                }
+
+                return $values
             }
 
 
@@ -876,78 +1201,3 @@ namespace eval avltree {
         return $tname
     }
 }
-
-# New data structures
-# Node:
-#   List: {value balance parent cleft cright}
-# initial vals:
-#  { $value 0 "NIL" "NIL" "NIL" }
-# NIL node:
-#  { "NULL" 0 "NIL" "NIL" "NIL" }
-#
-#
-# Tree:
-#  Namespace
-#   Variables:
-#    tree_root      <int>
-#    nodes          <list>
-#
-# Example:
-# insert 2
-#  tree::root = 0
-#  tree::nodes = {
-#                   {2 0 "NIL" "NIL" "NIL"}
-#                }
-#
-# insert 3
-#  tree::root = 0
-#  tree::nodes = {
-#                   {2 1 "NIL" "NIL" 1}
-#                   {3 0 0 "NIL" "NIL"}
-#                }
-#
-# insert 4
-#  tree::root = 1
-#  tree::nodes = {
-#                   {2 0 1 "NIL" "NIL"}
-#                   {3 0 "NIL" 0 2}
-#                   {4 0 1 "NIL" "NIL"}
-#                }
-#
-# delete 2
-#  tree::root = 1
-#  tree::nodes = {
-#                   {}
-#                   {3 1 "NIL" "NIL" 2}
-#                   {4 0 1 "NIL" "NIL"}
-#                }
-#
-# insert 1
-#  tree::root = 1
-#  tree::nodes = {
-#                   {}
-#                   {3 0 "NIL" 3 2}
-#                   {4 0 1 "NIL" "NIL"}
-#                   {1 0 1 "NIL" "NIL"}
-#                }
-#
-# delete 4
-#  tree::root = 1
-#  tree::free = {0 2}
-#  tree::nodes = {
-#                   {}
-#                   {3 -1 "NIL" 3 "NIL"}
-#                   {}
-#                   {1 0 1 "NIL" "NIL"}
-#                }
-#
-# insert 0
-#  tree::root = 3
-#  tree::free = {0}
-#  tree::nodes = {
-#                   {}
-#                   {3 0 3 "NIL" "NIL"}
-#                   {0 0 3 "NIL" "NIL"}
-#                   {1 0 "NIL" 2 1}
-#                }
-#  tree::NIL = {"NULL" 0 "NIL" "NIL" "NIL"}
