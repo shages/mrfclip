@@ -860,8 +860,8 @@ proc mrfclip::mrfclip {subject clipping operation} {
             set node [$S insert $event]
 
             # Get adjacent nodes to check for intersection
-            set prev [set [$S node_left_of $node]::value]
-            set next [set [$S node_right_of $node]::value]
+            set prev [$S value_left_of_node $node]
+            set next [$S value_right_of_node $node]
 
             # Set flags for the event
             set_inside_flags $event $prev
@@ -877,8 +877,8 @@ proc mrfclip::mrfclip {subject clipping operation} {
             # Get adjacent events to check for intersection after this event
             # is removed
             set node [$S find $other]
-            set prev [set [$S node_left_of $node]::value]
-            set next [set [$S node_right_of $node]::value]
+            set prev [$S value_left_of_node $node]
+            set next [$S value_right_of_node $node]
 
             # Capture this segment for the appropriate operations
             set segment [list [set ${other}::point] [set ${event}::point]]
