@@ -351,7 +351,8 @@ unitt suite "poly" {
     }
     {
         # Create two polygons
-        set mrfclip::queue [::avltree::create]
+        set mrfclip::queue [::heap::create]
+        set ${mrfclip::queue}::priority_value_separate 0
         proc ${mrfclip::queue}::compare {a b} {
             return [::mrfclip::compare_events $a $b]
         }
@@ -396,7 +397,7 @@ unitt suite "poly" {
         #set order {1 2 3 4 0 7 6 5}
         set order {1 2 3 4 11 12 0 10 9 7 6 5 13 14 8 15}
         set i -1
-        while {[set node [$mrfclip::queue pop_leftmost]] ne "NULL"} {
+        while {[set node [$mrfclip::queue pop]] ne ""} {
             unitt assert_eq $node [lindex $r [lindex $order [incr i]]]
         }
 
@@ -406,10 +407,9 @@ unitt suite "poly" {
         foreach event $r {
             lappend points [set ${event}::point]
         }
-        # Number of points currently should be 8, but after merging
-        # should be 6, but will be 7 because merging of common
-        # points is handled flat in mrfclip::mrfclip
-        unitt assert_eq [llength [lsort -unique $points]] 7
+        # Number of points initially will be 8, but after merging during
+        # compare_events proc, there should be 6
+        unitt assert_eq [llength [lsort -unique $points]] 6
     }
     {
         # Create two identical polygons
