@@ -472,6 +472,48 @@ unitt suite "poly" {
         # should be 6
         unitt assert_eq [llength [lsort -unique $points]] 4
     }
+    {
+        # Polygon with identical consecutive points
+        set mrfclip::queue [::avltree::create]
+        proc ${mrfclip::queue}::compare {a b} {
+            return [::mrfclip::compare_events $a $b]
+        }
+        set poly {0 0 0 10 0 10 10 10 10 0}
+        set r [mrfclip::create_poly $poly SUBJECT]
+        # indices of poly correpsonding with r
+        # r     poly
+        # 0     3
+        # 1     0
+        # 2     0
+        # 3     1
+        # 4     1
+        # 5     2
+        # 6     2
+        # 7     3
+
+        # 4 edges * 2 endpoints per edge = 8
+        unitt assert_eq [set [set [lindex $r 0]::point]::coord] {10 0}
+        unitt assert_eq [set [set [lindex $r 1]::point]::coord] {0 0}
+        unitt assert_eq [set [set [lindex $r 2]::point]::coord] {0 0}
+        unitt assert_eq [set [set [lindex $r 3]::point]::coord] {0 10}
+        unitt assert_eq [set [set [lindex $r 4]::point]::coord] {0 10}
+        unitt assert_eq [set [set [lindex $r 5]::point]::coord] {10 10}
+        unitt assert_eq [set [set [lindex $r 6]::point]::coord] {10 10}
+        unitt assert_eq [set [set [lindex $r 7]::point]::coord] {10 0}
+        set order {1 2 3 4 0 7 6 5}
+        set i -1
+        while {[set node [$mrfclip::queue pop_leftmost]] ne "NULL"} {
+            unitt assert_eq $node [lindex $r [lindex $order [incr i]]]
+        }
+
+        # number of points should equal number of coordinates
+        # provided to create_poly proc
+        set points {}
+        foreach event $r {
+            lappend points [set ${event}::point]
+        }
+        unitt assert_eq [llength [lsort -unique $points]] 4
+    }
 }
 
 unitt suite "set_inside_flags" {
