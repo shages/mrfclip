@@ -237,6 +237,7 @@ proc mrfclip::create_poly {poly polytype} {
     #
     # Return all sweep events of the polygon
     variable queue
+    variable epsilon
 
     # Unclose closed poly
     if {[lindex $poly 0] == [lindex $poly end-1] \
@@ -247,7 +248,18 @@ proc mrfclip::create_poly {poly polytype} {
     # Convert polygon coordinates to Points
     set points {}
     foreach {x y} $poly {
-        lappend points [::mrfclip::point init [list [expr {1.0*$x}] [expr {1.0*$y}]]]
+        set px [expr {1.0 * $x}]
+        set py [expr {1.0 * $y}]
+        if {[llength $points] == 0} {
+            lappend points [::mrfclip::point init [list $px $py]]
+        } else {
+            # Skip points that are the same as the previous point
+            set prev_point_coord [set [lindex $points end]::coord]
+            if {abs([lindex $prev_point_coord 0] - $px) > $epsilon \
+                || abs([lindex $prev_point_coord 1] - $py) > $epsilon} {
+                lappend points [::mrfclip::point init [list $px $py]]
+            }
+        }
     }
 
     # Create Events from Points
