@@ -104,8 +104,25 @@ proc mrfclip::S_point_compare {a b} {
     set p [point_above_line {*}[set [set [set ${a}::other]::point]::coord] \
     {*}[set [set ${b}::point]::coord] {*}[set [set [set ${b}::other]::point]::coord]]
 
-    # For collinear edges, insert subject first always
-    return [expr {$p != 0 ? $p : [set ${a}::polytype] eq "SUBJECT" ? -1 : 1}]
+    if {$p != 0} {
+        return $p
+    } elseif {[set ${a}::polytype] eq [set ${b}::polytype]} {
+        # These are overlapping edges on the same polygon, so this edge should
+        # never be included in the result, and furthermore the flags must be
+        # set properly for the next edge in the sweep line to have the
+        # correct flags.
+        #
+        # For this to occur, the edges must be inserted into the sweep line
+        # in the order of processing. This causes set_inside_flags to negate
+        # the inout flag on the second edge, such that the next real edge
+        # in the sweep line correctly uses this edge's inout flag to set its
+        # own flags
+        return 1
+    } elseif {[set ${a}::polytype] eq "SUBJECT"} {
+        # Otherwise, insert subject edge before clipping
+        return -1
+    }
+    return 1
 }
 
 proc mrfclip::compare_events {a b} {
@@ -423,10 +440,21 @@ proc mrfclip::possible_inter {e1 e2} {
     if {[edges_overlap $e1coord $e1ocoord $e2coord $e2ocoord]} {
         set ce1 [expr {[set ${e1}::left] ? $e1 : $e1o}]
         set ce2 [expr {[set ${e2}::left] ? $e2 : $e2o}]
-        set ${ce1}::edgetype "NON_CONTRIBUTING"
-        set ${ce2}::edgetype [expr { \
-            [set ${ce1}::inout] == [set ${ce2}::inout] ? \
-            "SAME_TRANSITION" : "DIFFERENT_TRANSITION"}]
+        if {[set ${e1}::polytype] eq [set ${e2}::polytype]} {
+            # Overlapping edges of the same polygon should be completely
+            # ignored
+            set ${ce1}::edgetype "NON_CONTRIBUTING"
+            set ${ce2}::edgetype "NON_CONTRIBUTING"
+        } elseif {[set ${ce1}::edgetype] eq "NON_CONTRIBUTING" \
+               || [set ${ce2}::edgetype] eq "NON_CONTRIBUTING"} {
+            # Ignore non contributing edges as if they don't exist
+        } else {
+            # Pick one
+            set ${ce1}::edgetype "NON_CONTRIBUTING"
+            set ${ce2}::edgetype [expr { \
+                [set ${ce1}::inout] == [set ${ce2}::inout] ? \
+                "SAME_TRANSITION" : "DIFFERENT_TRANSITION"}]
+        }
         return
     }
 
@@ -497,10 +525,21 @@ proc mrfclip::possible_inter {e1 e2} {
         # then that both events are inserted into S and will have valid
         # flags
         if {$left_match} {
-            set ${left1}::edgetype "NON_CONTRIBUTING"
-            set ${left2}::edgetype [expr { \
-                [set ${left1}::inout] == [set ${left2}::inout] ? \
-                "SAME_TRANSITION" : "DIFFERENT_TRANSITION"}]
+            if {[set ${left1}::polytype] eq [set ${left2}::polytype]} {
+                # Overlapping edges of the same polygon should be completely
+                # ignored
+                set ${left1}::edgetype "NON_CONTRIBUTING"
+                set ${left2}::edgetype "NON_CONTRIBUTING"
+            } elseif {[set ${left1}::edgetype] eq "NON_CONTRIBUTING" \
+                   || [set ${left2}::edgetype] eq "NON_CONTRIBUTING"} {
+                # Ignore non contributing edges as if they don't exist
+            } else {
+                # Pick one
+                set ${left1}::edgetype "NON_CONTRIBUTING"
+                set ${left2}::edgetype [expr { \
+                    [set ${left1}::inout] == [set ${left2}::inout] ? \
+                    "SAME_TRANSITION" : "DIFFERENT_TRANSITION"}]
+            }
         }
 
         # Now handle the middle & right segment
