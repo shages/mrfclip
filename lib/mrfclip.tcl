@@ -104,8 +104,25 @@ proc mrfclip::S_point_compare {a b} {
     set p [point_above_line {*}[set [set [set ${a}::other]::point]::coord] \
     {*}[set [set ${b}::point]::coord] {*}[set [set [set ${b}::other]::point]::coord]]
 
-    # For collinear edges, insert subject first always
-    return [expr {$p != 0 ? $p : [set ${a}::polytype] eq "SUBJECT" ? -1 : 1}]
+    if {$p != 0} {
+        return $p
+    } elseif {[set ${a}::polytype] eq [set ${b}::polytype]} {
+        # These are overlapping edges on the same polygon, so this edge should
+        # never be included in the result, and furthermore the flags must be
+        # set properly for the next edge in the sweep line to have the
+        # correct flags.
+        #
+        # For this to occur, the edges must be inserted into the sweep line
+        # in the order of processing. This causes set_inside_flags to negate
+        # the inout flag on the second edge, such that the next real edge
+        # in the sweep line correctly uses this edge's inout flag to set its
+        # own flags
+        return 1
+    } elseif {[set ${a}::polytype] eq "SUBJECT"} {
+        # Otherwise, insert subject edge before clipping
+        return -1
+    }
+    return 1
 }
 
 proc mrfclip::compare_events {a b} {
@@ -220,6 +237,7 @@ proc mrfclip::create_poly {poly polytype} {
     #
     # Return all sweep events of the polygon
     variable queue
+    variable epsilon
 
     # Unclose closed poly
     if {[lindex $poly 0] == [lindex $poly end-1] \
@@ -230,7 +248,18 @@ proc mrfclip::create_poly {poly polytype} {
     # Convert polygon coordinates to Points
     set points {}
     foreach {x y} $poly {
-        lappend points [::mrfclip::point init [list [expr {1.0*$x}] [expr {1.0*$y}]]]
+        set px [expr {1.0 * $x}]
+        set py [expr {1.0 * $y}]
+        if {[llength $points] == 0} {
+            lappend points [::mrfclip::point init [list $px $py]]
+        } else {
+            # Skip points that are the same as the previous point
+            set prev_point_coord [set [lindex $points end]::coord]
+            if {abs([lindex $prev_point_coord 0] - $px) > $epsilon \
+                || abs([lindex $prev_point_coord 1] - $py) > $epsilon} {
+                lappend points [::mrfclip::point init [list $px $py]]
+            }
+        }
     }
 
     # Create Events from Points
@@ -423,10 +452,21 @@ proc mrfclip::possible_inter {e1 e2} {
     if {[edges_overlap $e1coord $e1ocoord $e2coord $e2ocoord]} {
         set ce1 [expr {[set ${e1}::left] ? $e1 : $e1o}]
         set ce2 [expr {[set ${e2}::left] ? $e2 : $e2o}]
-        set ${ce1}::edgetype "NON_CONTRIBUTING"
-        set ${ce2}::edgetype [expr { \
-            [set ${ce1}::inout] == [set ${ce2}::inout] ? \
-            "SAME_TRANSITION" : "DIFFERENT_TRANSITION"}]
+        if {[set ${e1}::polytype] eq [set ${e2}::polytype]} {
+            # Overlapping edges of the same polygon should be completely
+            # ignored
+            set ${ce1}::edgetype "NON_CONTRIBUTING"
+            set ${ce2}::edgetype "NON_CONTRIBUTING"
+        } elseif {[set ${ce1}::edgetype] eq "NON_CONTRIBUTING" \
+               || [set ${ce2}::edgetype] eq "NON_CONTRIBUTING"} {
+            # Ignore non contributing edges as if they don't exist
+        } else {
+            # Pick one
+            set ${ce1}::edgetype "NON_CONTRIBUTING"
+            set ${ce2}::edgetype [expr { \
+                [set ${ce1}::inout] == [set ${ce2}::inout] ? \
+                "SAME_TRANSITION" : "DIFFERENT_TRANSITION"}]
+        }
         return
     }
 
@@ -497,10 +537,21 @@ proc mrfclip::possible_inter {e1 e2} {
         # then that both events are inserted into S and will have valid
         # flags
         if {$left_match} {
-            set ${left1}::edgetype "NON_CONTRIBUTING"
-            set ${left2}::edgetype [expr { \
-                [set ${left1}::inout] == [set ${left2}::inout] ? \
-                "SAME_TRANSITION" : "DIFFERENT_TRANSITION"}]
+            if {[set ${left1}::polytype] eq [set ${left2}::polytype]} {
+                # Overlapping edges of the same polygon should be completely
+                # ignored
+                set ${left1}::edgetype "NON_CONTRIBUTING"
+                set ${left2}::edgetype "NON_CONTRIBUTING"
+            } elseif {[set ${left1}::edgetype] eq "NON_CONTRIBUTING" \
+                   || [set ${left2}::edgetype] eq "NON_CONTRIBUTING"} {
+                # Ignore non contributing edges as if they don't exist
+            } else {
+                # Pick one
+                set ${left1}::edgetype "NON_CONTRIBUTING"
+                set ${left2}::edgetype [expr { \
+                    [set ${left1}::inout] == [set ${left2}::inout] ? \
+                    "SAME_TRANSITION" : "DIFFERENT_TRANSITION"}]
+            }
         }
 
         # Now handle the middle & right segment
@@ -835,6 +886,11 @@ proc mrfclip::mrfclip {subject clipping operation} {
 
     # Sweep through events
     set previous_event ""
+
+    # Cache AVL tree node index on insertion so it can be re-used
+    # later
+    # Cache is indexed by event name
+    set node_cache [dict create]
     while {[set event [$queue pop]] ne ""} {
         # Merge common points, which will always be adjacent in priority queue
         # Points must be common for chain connection later to lookup by
@@ -858,10 +914,11 @@ proc mrfclip::mrfclip {subject clipping operation} {
             # left event
             # Insert into S
             set node [$S insert $event]
+            dict set node_cache $event $node
 
             # Get adjacent nodes to check for intersection
-            set prev [set [$S node_left_of $node]::value]
-            set next [set [$S node_right_of $node]::value]
+            set prev [$S value_left_of_node $node]
+            set next [$S value_right_of_node $node]
 
             # Set flags for the event
             set_inside_flags $event $prev
@@ -876,9 +933,9 @@ proc mrfclip::mrfclip {subject clipping operation} {
 
             # Get adjacent events to check for intersection after this event
             # is removed
-            set node [$S find $other]
-            set prev [set [$S node_left_of $node]::value]
-            set next [set [$S node_right_of $node]::value]
+            set node [dict get $node_cache $other]
+            set prev [$S value_left_of_node $node]
+            set next [$S value_right_of_node $node]
 
             # Capture this segment for the appropriate operations
             set segment [list [set ${other}::point] [set ${event}::point]]
@@ -908,7 +965,7 @@ proc mrfclip::mrfclip {subject clipping operation} {
             }
 
             # Remove event from S
-            if {[$S delete $other] == 0} {
+            if {[$S delete_node $node] == 0} {
                 puts "ERROR: Couldn't delete: $other. Result will likely be wrong."
                 puts "  coord = [set [set ${other}::point]::coord]"
             }
@@ -928,8 +985,11 @@ proc mrfclip::mrfclip {subject clipping operation} {
     }
 
     # Cleanup
+    $queue destroy
+    $S destroy
     namespace delete {*}[namespace children ::mrfclip::event]
     namespace delete {*}[namespace children ::mrfclip::point]
+    namespace delete {*}[namespace children ::mrfclip::chain]
 
     return $polygons
 }

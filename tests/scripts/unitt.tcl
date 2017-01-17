@@ -2,6 +2,7 @@ package require Tcl 8.5
 package provide unitt 1.0
 namespace eval unitt {
     namespace export init
+    namespace export exit
     namespace export summarize
     namespace export suite
     namespace export assert_eq
@@ -96,5 +97,12 @@ proc unitt::assert_eq {a b} {
     puts " b: $b"
     error AssertionError
   }
+}
+
+proc unitt::exit {} {
+    if {$___test::total_errors > 0} {
+        error "One or more unit tests failed."
+    }
+    ::exit
 }
 

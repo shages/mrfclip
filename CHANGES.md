@@ -1,4 +1,12 @@
 
+1.2
+===
+* Replaced AVL tree with list-based implementation for improved runtime
+* Underlying data structures are now cleaned up after clipping
+* Various performance enhancements to sweep line loop
+* Consecutive duplicate points in input polygons are now gracefully handled
+* Exploratory support for self-overlapping edges. There may still be bugs.
+
 1.1
 ===
 * Replaced priority queue with Heap to improve runtime

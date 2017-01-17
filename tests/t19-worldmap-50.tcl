@@ -26,13 +26,6 @@ while {[gets $fworld line] > -1} {
     lappend poly1 $poly
 }
 close $fworld
-set fp [open "poly1.txt" "w"]
-foreach poly $poly1 {
-    puts $fp "POLY:"
-    puts $fp [join $poly "\n"]
-    puts $fp ""
-}
-close $fp
 
 # Read clipping polygons
 set fclip [open "scripts/wm_50_squares" "r"]
