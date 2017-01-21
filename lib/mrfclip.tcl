@@ -292,12 +292,31 @@ proc mrfclip::set_inside_flags {curr_event prev_event} {
     # prev_event    the preceeding event in s
     #
     # return nothing
+    variable epsilon
     if {$prev_event eq {} || $prev_event eq "NULL"} {
         set ${curr_event}::inout 0
         set ${curr_event}::inside 0
     } elseif {[set ${curr_event}::polytype] eq [set ${prev_event}::polytype]} {
         set ${curr_event}::inside [set ${prev_event}::inside]
-        set ${curr_event}::inout [expr {![set ${prev_event}::inout]}]
+        # handle special case for coincident edge to the left
+        set prev_coord [set [set ${prev_event}::point]::coord]
+        set prev_other_coord [set [set [set ${prev_event}::other]::point]::coord]
+        set this_coord [set [set ${curr_event}::point]::coord]
+        set this_other_coord [set [set [set ${curr_event}::other]::point]::coord]
+        if {abs([lindex $prev_coord 1] - [lindex $this_coord 1]) < $epsilon \
+            && abs([lindex $prev_other_coord 1] - [lindex $this_other_coord 1]) < $epsilon \
+            && [lindex $prev_coord 0] - [lindex $this_coord 0] < -$epsilon \
+            || abs([lindex $prev_coord 0] - [lindex $this_coord 0]) < $epsilon \
+            && abs([lindex $prev_other_coord 0] - [lindex $this_other_coord 0]) < $epsilon \
+            && [lindex $prev_coord 1] - [lindex $this_coord 1] < -$epsilon} {
+            # The prev edge and this edge are both horizontal, overlapping, and on 
+            # the same polygon. Therefore, they should share the same inout flag if
+            # the previous edge is left of this one. The new edge after subdivision
+            # will toggle its inout flag, as anticipated.
+            set ${curr_event}::inout [set ${prev_event}::inout]
+        } else {
+            set ${curr_event}::inout [expr {![set ${prev_event}::inout]}]
+        }
     } else {
         # Transition of a vertical line is the opposite, since this
         # is a vertical sweep line
