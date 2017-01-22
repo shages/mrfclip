@@ -11,6 +11,8 @@ package provide mrfclip 1.1
 namespace eval mrfclip {
     namespace export mrfclip
     namespace export clip
+    namespace export clip_all
+    namespace ensemble create
 
     variable queue {}; # list of sweep events (mrfclip::event), priority queue
     variable epsilon 0.00000000001
@@ -1069,4 +1071,26 @@ proc mrfclip::clip {args} {
         set p2 [convert_poly_to_multi_poly [lindex $args end]]
         return [mrfclip [clip {*}[lrange $args 0 end-2]] $p2 [lindex $args end-1]]
     }
+}
+
+proc mrfclip::clip_all {operation multi_polygon} {
+  # apply a boolean operator between all polygons supplied
+  #
+  # Example:
+  #   mrfclip::clip_all OR [list $p1 $p2 $p3 $p4] ->
+  #   mrfclip::clip $p1 OR $p2 OR $p3 OR $p4
+  #
+  # Arguments:
+  # operation       The boolean operator to apply
+  # multi_polygon   A list of polygons (not multi-polygons)
+  #
+  # Return:
+  # Multi-polygon result
+  if {[llength $multi_polygon] == 1} {
+    puts "WARN: Only one polygon was provided - returning it"
+    return $multi_polygon
+  }
+
+  set args \{[join $multi_polygon "\} $operation \{"]\}
+  return [clip {*}$args]
 }

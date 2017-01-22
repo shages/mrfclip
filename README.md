@@ -105,9 +105,52 @@ returned (a _multi-polygon_). For this reason, the return value of
 `mrfclip::clip` is always a list of list(s) regardless of the actual result,
 and multi-polygons can also be used directly as input to `mrfclip::clip`
 
+## API
+
+#### mrfclip::clip *poly1* *operation* *poly2* *operation* ... *operation* *polyN*
+    Parse and execute poly clipping expression
+
+    Example:
+    mrfclip::clip $p1 AND $p2 OR $p3 XOR $p4 NOT $p5
+
+    Arguments:
+    args        clipping expression to be parsed
+
+    Return:
+    Multi-polygon result
+
+#### mrfclip::clip_all *operation* *multi_polygon*
+    Apply a boolean operator between all polygons supplied
+
+    Example:
+    mrfclip::clip_all OR [list $p1 $p2 $p3 $p4] ->
+    mrfclip::clip $p1 OR $p2 OR $p3 OR $p4
+
+    Arguments:
+    operation       The boolean operator to apply
+    multi_polygon   A list of polygons (not multi-polygons)
+
+    Return:
+    Multi-polygon result
+
+#### mrfclip::mrfclip *subject* *clipping* *operation*
+    Clip two polygons based on the specified operation
+
+    Example:
+    mrfclip::mrfclip $p1 $p2 AND
+
+    Arguments:
+    subject     the subject multi-polygon
+    clipping    the clipping multi-polygon
+    operation   the boolean operation to perform (and|or|not|xor)
+
+    Return:
+    Multi-polygon result
+
 ## Known Issues
-- Polygons with self-overlapping edges are supported, but it has not been
-exhaustively tested.
+- Support for self-overlapping edges is under development. It is recommended
+to OR all polygons within the subject and/or clipping multi-polygons
+first to remove such degenerate edges (try `mrfclip::clip_all OR $polygons`).
 - While holes are supported as input and output, there is no special
 handling when returning holes. Holes and their enclosing polygons are not
 associated, and may be returned in any order.
