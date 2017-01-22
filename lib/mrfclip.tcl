@@ -303,16 +303,19 @@ proc mrfclip::set_inside_flags {curr_event prev_event} {
         set prev_other_coord [set [set [set ${prev_event}::other]::point]::coord]
         set this_coord [set [set ${curr_event}::point]::coord]
         set this_other_coord [set [set [set ${curr_event}::other]::point]::coord]
-        if {abs([lindex $prev_coord 1] - [lindex $this_coord 1]) < $epsilon \
-            && abs([lindex $prev_other_coord 1] - [lindex $this_other_coord 1]) < $epsilon \
-            && [lindex $prev_coord 0] - [lindex $this_coord 0] < -$epsilon \
-            || abs([lindex $prev_coord 0] - [lindex $this_coord 0]) < $epsilon \
-            && abs([lindex $prev_other_coord 0] - [lindex $this_other_coord 0]) < $epsilon \
-            && [lindex $prev_coord 1] - [lindex $this_coord 1] < -$epsilon} {
-            # The prev edge and this edge are both horizontal, overlapping, and on 
-            # the same polygon. Therefore, they should share the same inout flag if
-            # the previous edge is left of this one. The new edge after subdivision
-            # will toggle its inout flag, as anticipated.
+        set inter [intersect [list {*}$prev_coord {*}$prev_other_coord] \
+                             [list {*}$this_coord {*}$this_other_coord]]
+        if {[llength $inter] == 4 && ( \
+            [lindex $prev_coord 0] - [lindex $this_coord 0] < -$epsilon \
+            || (abs([lindex $prev_coord 0] - [lindex $this_coord 0]) < $epsilon \
+            && [lindex $prev_coord 1] - [lindex $this_coord 1] < -$epsilon))} {
+            # The prev edge and this edge are both overlapping, on the same
+            # polygon, and the prev event is 'left' of this one. Instead of
+            # toggling the inout flag, we should keep the same flag as the prev
+            # event.
+            # Because these two events intersect and don't share the left point,
+            # they will cause a subdivision, and the new edge overlapping this
+            # edge will prpoerly toggle its inout flag based on this one's.
             set ${curr_event}::inout [set ${prev_event}::inout]
         } else {
             set ${curr_event}::inout [expr {![set ${prev_event}::inout]}]
@@ -320,7 +323,10 @@ proc mrfclip::set_inside_flags {curr_event prev_event} {
     } else {
         # Transition of a vertical line is the opposite, since this
         # is a vertical sweep line
-        set ${curr_event}::inside [expr {[::mrfclip::event is_vertical $prev_event] ? [set ${prev_event}::inout] : ![set ${prev_event}::inout]}]
+        set ${curr_event}::inside [expr { \
+          [::mrfclip::event is_vertical $prev_event] ? \
+          [set ${prev_event}::inout] : \
+          ![set ${prev_event}::inout]}]
         set ${curr_event}::inout [set ${prev_event}::inside]
     }
 }
@@ -997,11 +1003,13 @@ proc mrfclip::mrfclip {subject clipping operation} {
 
     # Create and connect chains of segments into polygons
     switch $operation {
-        "AND" { set polygons [::mrfclip::create_chains $intersection_psegs] }
-        "OR"  { set polygons [::mrfclip::create_chains $union_psegs] }
-        "NOT" { set polygons [::mrfclip::create_chains $diff_psegs] }
-        "XOR" { set polygons [::mrfclip::create_chains $xor_psegs] }
+        "AND" { set segments $intersection_psegs }
+        "OR"  { set segments $union_psegs }
+        "NOT" { set segments $diff_psegs }
+        "XOR" { set segments $xor_psegs }
     }
+
+    set polygons [::mrfclip::create_chains $segments]
 
     # Cleanup
     $queue destroy

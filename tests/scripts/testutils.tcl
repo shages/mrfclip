@@ -43,6 +43,10 @@ proc _clip_test {row col ops polylist {resultdir .} {wh {200 200}} {linew 1}} {
     for {set i 0} {$i < [llength $polylist]} {incr i} {
         foreach poly [lindex $polylist $i] {
             $canv create polygon {*}$poly -fill {} -outline [lindex $colors $i] -width $linew
+#            foreach {x y} $poly {
+#              $canv create text $x $y -text [format "%.2f" $x] -fill \#000000 -anchor sw -font {courier 12} -width $width
+#              $canv create text $x $y -text [format "%.2f" $y] -fill \#000000 -anchor nw -font {courier 12} -width $width
+#            }
         }
         $canv create text 0 [expr ($i+1)*10] -text [lindex $letters $i] -fill [lindex $colors $i] -anchor nw -font {courier 10}
     }
@@ -68,4 +72,16 @@ proc _clip_test {row col ops polylist {resultdir .} {wh {200 200}} {linew 1}} {
     puts "Writing postscript for r=$row c=$col"
     $canv postscript -file $resultdir/${fname}.ps -width $width -height $height -pagewidth $width -pageheight $height -x 0 -y 0 -pageanchor nw
     return $cliplist
+}
+
+proc _scale_poly {polygons xs ys} {
+  set new_poly [list]
+  foreach poly $polygons {
+    set tmp [list]
+    foreach {x y} $poly {
+      lappend tmp [expr {1.0 * $x * $xs}] [expr {1.0 * $y * $ys}]
+    }
+    lappend new_poly $tmp
+  }
+  return $new_poly
 }
