@@ -1,4 +1,10 @@
 
+1.3
+===
+* Some bug fixes and new tests for self-overlapping edges. Known bugs exist.
+* Added ::mrfclip::clip_all proc to apply a single boolean operation to all
+  polygons
+
 1.2
 ===
 * Replaced AVL tree with list-based implementation for improved runtime
